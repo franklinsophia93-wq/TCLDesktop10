@@ -50,6 +50,17 @@ with tempfile.TemporaryDirectory() as tmp:
     (libs / "libtest.so").write_bytes(b"test")
     (java / "XServerDisplayActivity.java").write_text("package com.winlator;")
     (java / "ProviderUse.java").write_text('String s="com.winlator.FileProvider";')
+    hardcoded = [
+        ("cpp/winlator/include/winlator.h", "/data/data/com.winlator/cache"),
+        ("cpp/gladiorenderer/include/gladio.h", "/data/data/com.winlator/files/rootfs/tmp/.X11-unix/X0"),
+        ("cpp/vortekrenderer/include/vortek.h", "/data/data/com.winlator/files/rootfs/tmp/.vortek/V0"),
+        ("java/com/winlator/core/AppUtils.java", "/data/data/com.winlator/storage"),
+    ]
+    for relative, old_path in hardcoded:
+        fixture = base / relative
+        fixture.parent.mkdir(parents=True, exist_ok=True)
+        fixture.write_text('static final String PATH = "' + old_path + '";')
+
     mod.patch(work)
     rewritten = (base / "AndroidManifest.xml").read_text()
     assert rewritten.count("android.intent.action.MAIN") == 1
@@ -63,6 +74,10 @@ with tempfile.TemporaryDirectory() as tmp:
     assert "TCL Desktop 10" in (base / "res/values-pt/strings.xml").read_text()
     assert "TCL Desktop 10" in (base / "res/values-ru/strings.xml").read_text()
     assert "com.tcldesktop.windows.FileProvider" in (java / "ProviderUse.java").read_text()
+    for relative, old_path in hardcoded:
+        content = (base / relative).read_text()
+        assert old_path not in content, relative
+        assert "/data/data/com.tcldesktop.windows/" in content, relative
     assert (java / "TclDesktopActivity.java").exists()
     assert (assets / "tcl-licenses/WINLATOR-LICENSE.txt").exists()
     print("Verificacoes do overlay aprovadas (sem compilacao ou teste Wine).")
