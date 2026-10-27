@@ -27,6 +27,7 @@ jobs:
         run: |
           python3 tests/test-runtime-overlay.py
           python3 tests/test-startup-watchdog.py
+          python3 tests/test-box64-health.py
       - name: Configurar Android SDK preinstalado no GitHub
         shell: bash
         run: |
