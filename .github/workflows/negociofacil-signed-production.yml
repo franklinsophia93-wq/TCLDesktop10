@@ -1,0 +1,97 @@
+name: NegocioFacil - APK com assinatura permanente
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-signed:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 40
+    steps:
+      - name: Checkout do codigo de NegocioFacil
+        uses: actions/checkout@v4
+      - name: Descompactar a fonte e aplicar revisao 0.3
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f negociofacil/NegocioFacil-src.zip
+          test -f negociofacil/upgrade_v03.py
+          mkdir build-src
+          unzip -q negociofacil/NegocioFacil-src.zip -d build-src
+          python3 negociofacil/upgrade_v03.py build-src
+          node --check build-src/web/app.js
+          grep -q "versionCode 3" build-src/android/app/build.gradle
+          grep -q "applicationId 'br.com.negociofacil.app'" build-src/android/app/build.gradle
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Android SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          test -n "$SDKMANAGER"
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+          "$SDKMANAGER" --install 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Carregar chave de assinatura PRIVADA do GitHub Secrets
+        env:
+          NF_KEYSTORE_B64: ${{ secrets.NF_KEYSTORE_B64 }}
+          NF_KEYSTORE_PASSWORD: ${{ secrets.NF_KEYSTORE_PASSWORD }}
+          NF_KEY_ALIAS: ${{ secrets.NF_KEY_ALIAS }}
+          NF_KEY_PASSWORD: ${{ secrets.NF_KEY_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in NF_KEYSTORE_B64 NF_KEYSTORE_PASSWORD NF_KEY_ALIAS NF_KEY_PASSWORD; do
+            if test -z "${!name:-}"; then
+              echo "::error::Segredo GitHub ausente: $name. Configure todos os quatro antes de gerar o APK permanente."
+              exit 1
+            fi
+          done
+          umask 077
+          printf '%s' "$NF_KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/negociofacil-signing.jks"
+          test -s "$RUNNER_TEMP/negociofacil-signing.jks"
+          keytool -list -keystore "$RUNNER_TEMP/negociofacil-signing.jks" -alias "$NF_KEY_ALIAS" -storepass "$NF_KEYSTORE_PASSWORD" >/dev/null
+          echo "NF_KEYSTORE_FILE=$RUNNER_TEMP/negociofacil-signing.jks" >> "$GITHUB_ENV"
+          echo "::add-mask::$NF_KEYSTORE_PASSWORD"
+          echo "::add-mask::$NF_KEY_PASSWORD"
+          echo "NF_KEYSTORE_PASSWORD=$NF_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+          echo "NF_KEY_ALIAS=$NF_KEY_ALIAS" >> "$GITHUB_ENV"
+          echo "NF_KEY_PASSWORD=$NF_KEY_PASSWORD" >> "$GITHUB_ENV"
+      - name: Compilar e assinar release com a chave permanente
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle -p build-src/android --no-daemon --max-workers=2 \
+            -Dorg.gradle.jvmargs="-Xmx3g -XX:MaxMetaspaceSize=512m" :app:assembleRelease
+      - name: Conferir APK e identidade da assinatura
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=build-src/android/app/build/outputs/apk/release/app-release.apk
+          test -s "$APK"
+          unzip -tqq "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -Fq "package: name='br.com.negociofacil.app'"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -Fq "versionCode='3'"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$APK" | tee assinatura.txt
+          grep -q 'Signer #1 certificate SHA-256 digest:' assinatura.txt
+          cp "$APK" NegocioFacil-0.3-assinado.apk
+          sha256sum NegocioFacil-0.3-assinado.apk
+          echo "::notice::Salve a chave original com seguranca. Alterar chave pode impedir atualizacoes do app."
+      - name: Publicar artifact apenas apos assinatura verificada
+        uses: actions/upload-artifact@v4
+        with:
+          name: NegocioFacil-0.3-ASSINADO-com-chave-permanente
+          path: |
+            NegocioFacil-0.3-assinado.apk
+            assinatura.txt
+          if-no-files-found: error
