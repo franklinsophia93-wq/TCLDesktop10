@@ -66,6 +66,10 @@ public final class TclWin10Shell extends FrameLayout {
         addEntry(items, "▣   Painel de Controle", () -> runWine("wine control.exe"));
         addEntry(items, ">_   Terminal Windows", () -> runWine("wine cmd.exe"));
         addEntry(items, "⌕   Executar programa .exe", this::showRunDialog);
+        addEntry(items, "⌨   Teclado do celular (ou 2 toques)", () -> {
+            closeStart();
+            activity.tclOpenAndroidKeyboard();
+        });
         addEntry(items, "⚙   Configurações do ambiente", () -> {
             closeStart();
             activity.tclOpenSettings();
@@ -110,6 +114,12 @@ public final class TclWin10Shell extends FrameLayout {
         notepad.setGravity(Gravity.CENTER);
         taskbar.addView(notepad, new LinearLayout.LayoutParams(dp(47), -1));
         notepad.setOnClickListener(v -> runWine("wine notepad.exe"));
+
+        TextView keyboard = item("⌨", 24, 0xFFFFFFFF);
+        keyboard.setGravity(Gravity.CENTER);
+        keyboard.setContentDescription("Abrir teclado Android para digitar nos programas Windows");
+        taskbar.addView(keyboard, new LinearLayout.LayoutParams(dp(51), -1));
+        keyboard.setOnClickListener(v -> activity.tclOpenAndroidKeyboard());
 
         View spacer = new View(activity);
         taskbar.addView(spacer, new LinearLayout.LayoutParams(0, 1, 1));
