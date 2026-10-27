@@ -1,0 +1,41 @@
+name: TCL Desktop 10 - APK para testes
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    steps:
+      - name: Baixar fontes do TCL Desktop 10
+        uses: actions/checkout@v4
+      - name: Preparar Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Verificar os componentes Java e o patch
+        run: |
+          sh tests/run-tests.sh
+          python3 tests/test-runtime-overlay.py
+      - name: Instalar ferramentas Android
+        uses: android-actions/setup-android@v3
+      - name: Instalar Android SDK / NDK / CMake
+        run: sdkmanager --install 'platforms;android-35' 'build-tools;35.0.0' 'ndk;24.0.8215888' 'cmake;3.22.1'
+      - name: Configurar Gradle
+        uses: gradle/actions/setup-gradle@v4
+      - name: Compilar TCL Desktop 10 com motor Windows real
+        run: bash integration/winlator-overlay/build.sh
+        env:
+          WORKDIR: ${{ runner.temp }}/tcl-runtime-build
+      - name: Publicar APK para instalação pelo proprietário
+        uses: actions/upload-artifact@v4
+        with:
+          name: TCLDesktop10-APK-teste
+          path: app/build/outputs/apk/debug/TCLDesktop10-debug.apk
+          if-no-files-found: error
