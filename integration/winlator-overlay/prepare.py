@@ -32,10 +32,10 @@ def patch(source: Path):
 
     manifest_path = base / "AndroidManifest.xml"
     manifest = manifest_path.read_text(encoding="utf-8")
-    pattern = (r'<activity android:name="com\\.winlator\\.MainActivity"(?P<attrs>[^>]*?)>\\s*'
-               r'<intent-filter>\\s*<action android:name="android\\.intent\\.action\\.MAIN"\\s*/>\\s*'
-               r'<category android:name="android\\.intent\\.category\\.LAUNCHER"\\s*/>\\s*'
-               r'</intent-filter>\\s*</activity>')
+    pattern = (r'<activity android:name="com\.winlator\.MainActivity"(?P<attrs>[^>]*?)>\s*'
+               r'<intent-filter>\s*<action android:name="android\.intent\.action\.MAIN"\s*/>\s*'
+               r'<category android:name="android\.intent\.category\.LAUNCHER"\s*/>\s*'
+               r'</intent-filter>\s*</activity>')
     match = re.search(pattern, manifest, re.S)
     if not match:
         raise RuntimeError("Manifest nao corresponde ao codigo versionado; compilacao interrompida")
