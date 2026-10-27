@@ -13,7 +13,7 @@ import tarfile
 import tempfile
 
 OLD = b"com.winlator"
-NEW = b"com.tclwin10"
+NEW = b"com.tclwin11"
 assert len(OLD) == len(NEW) == 12
 
 
@@ -42,8 +42,8 @@ def patch(assets: Path):
                     for member in source_tar:
                         old_name = member.name
                         old_link = member.linkname
-                        member.name = old_name.replace("com.winlator", "com.tclwin10")
-                        member.linkname = old_link.replace("com.winlator", "com.tclwin10")
+                        member.name = old_name.replace("com.winlator", "com.tclwin11")
+                        member.linkname = old_link.replace("com.winlator", "com.tclwin11")
                         payload = source_tar.extractfile(member) if member.isfile() else None
                         destination_tar.addfile(member, payload)
                 rebuilt.replace(raw_tar)
