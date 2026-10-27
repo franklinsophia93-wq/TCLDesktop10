@@ -83,6 +83,34 @@ def patch(source: Path):
     if translated_count < 2:
         raise RuntimeError("Nomes de traducao ausentes; verificar identidade TCL")
 
+    # O pacote Android foi alterado; as bibliotecas nativas e alguns modulos
+    # ainda usam caminhos ABSOLUTOS para o pacote original. Sem isto os
+    # sockets X11/Vortek e o armazenamento privado nao chegam ao destino.
+    native_paths_changed = []
+    for file in (base / "cpp").rglob("*"):
+        if file.is_file() and file.suffix in (".c", ".cpp", ".h", ".hpp"):
+            contents = file.read_text(encoding="utf-8", errors="surrogateescape")
+            if "/data/data/com.winlator" in contents:
+                updated = contents.replace("/data/data/com.winlator",
+                                           "/data/data/" + APP_ID)
+                file.write_text(updated, encoding="utf-8", errors="surrogateescape")
+                native_paths_changed.append(file.relative_to(source).as_posix())
+    for file in (base / "java").rglob("*.java"):
+        contents = file.read_text(encoding="utf-8")
+        if "/data/data/com.winlator" in contents:
+            file.write_text(contents.replace("/data/data/com.winlator",
+                                             "/data/data/" + APP_ID), encoding="utf-8")
+            native_paths_changed.append(file.relative_to(source).as_posix())
+    required_paths = (
+        "app/src/main/cpp/winlator/include/winlator.h",
+        "app/src/main/cpp/gladiorenderer/include/gladio.h",
+        "app/src/main/cpp/vortekrenderer/include/vortek.h",
+        "app/src/main/java/com/winlator/core/AppUtils.java",
+    )
+    for name in required_paths:
+        if name not in native_paths_changed:
+            raise RuntimeError("Caminho hardcoded ausente ou alterado: " + name)
+
     for file in base.rglob("*.java"):
         data = file.read_text(encoding="utf-8")
         if "com.winlator.FileProvider" in data:
