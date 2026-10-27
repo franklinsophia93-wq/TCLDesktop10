@@ -26,6 +26,7 @@ jobs:
       - name: Verificar os componentes Java e o patch
         run: |
           python3 tests/test-runtime-overlay.py
+          python3 tests/test-startup-watchdog.py
       - name: Configurar Android SDK preinstalado no GitHub
         shell: bash
         run: |
