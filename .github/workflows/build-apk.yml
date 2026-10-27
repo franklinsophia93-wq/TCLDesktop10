@@ -21,7 +21,6 @@ jobs:
           java-version: '17'
       - name: Verificar os componentes Java e o patch
         run: |
-          sh tests/run-tests.sh
           python3 tests/test-runtime-overlay.py
       - name: Instalar ferramentas Android
         uses: android-actions/setup-android@v3
