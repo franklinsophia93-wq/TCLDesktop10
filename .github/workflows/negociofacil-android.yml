@@ -1,9 +1,10 @@
-name: NegocioFacil Android 0.2 - teste
+name: NegocioFacil Android 0.3 - documentos e anúncios teste
 on:
   push:
     branches: [negociofacil-android]
     paths:
       - 'negociofacil/NegocioFacil-src.zip'
+      - 'negociofacil/upgrade_v03.py'
       - '.github/workflows/negociofacil-android.yml'
   workflow_dispatch:
 
@@ -23,7 +24,8 @@ jobs:
           unzip -q negociofacil/NegocioFacil-src.zip -d build-src
           test -s build-src/web/app.js
           test -s build-src/android/app/build.gradle
-          grep -q "versionCode 2" build-src/android/app/build.gradle
+          python3 negociofacil/upgrade_v03.py build-src
+          grep -q "versionCode 3" build-src/android/app/build.gradle
           node --check build-src/web/app.js
       - name: Configurar Java 17
         uses: actions/setup-java@v4
@@ -52,14 +54,14 @@ jobs:
           test -s "$APK"
           unzip -tqq "$APK"
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -Fq "package: name='br.com.negociofacil.app'"
-          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -Fq "versionCode='2'"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -Fq "versionCode='3'"
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$APK"
-          cp "$APK" NegocioFacil-0.2-teste.apk
-          sha256sum NegocioFacil-0.2-teste.apk
+          cp "$APK" NegocioFacil-0.3-teste.apk
+          sha256sum NegocioFacil-0.3-teste.apk
           echo 'ATENCAO: ASSINATURA DE DEBUG DO CI. ESTA COMPILACAO PODE NAO ATUALIZAR A VERSAO 0.1 INSTALADA.'
       - name: Enviar APK de teste
         uses: actions/upload-artifact@v4
         with:
-          name: NegocioFacil-0.2-APK
-          path: NegocioFacil-0.2-teste.apk
+          name: NegocioFacil-0.3-APK
+          path: NegocioFacil-0.3-teste.apk
           if-no-files-found: error
