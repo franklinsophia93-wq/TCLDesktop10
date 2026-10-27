@@ -1,0 +1,45 @@
+name: Publicar NegocioFacil 0.3 - anuncios e documentos
+on:
+  push:
+    branches: [negociofacil-android]
+    paths:
+      - '.github/workflows/publish-negociofacil-v03.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publicar:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - name: Baixar APK Android compilado
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 40603024131
+          repository: franklinsophia93-wq/TCLDesktop10
+          github-token: ${{ github.token }}
+          name: NegocioFacil-0.3-APK
+          path: release
+      - name: Verificar integridade, versao e certificado
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s release/NegocioFacil-0.3-teste.apk
+          unzip -tqq release/NegocioFacil-0.3-teste.apk
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging release/NegocioFacil-0.3-teste.apk | grep -Fq "package: name='br.com.negociofacil.app'"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging release/NegocioFacil-0.3-teste.apk | grep -Fq "versionCode='3'"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose release/NegocioFacil-0.3-teste.apk
+          sha256sum release/NegocioFacil-0.3-teste.apk
+      - name: Publicar link direto para teste
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh release create negociofacil-v0.3-teste release/NegocioFacil-0.3-teste.apk \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "NegocioFacil 0.3 - documentos e anuncios (TESTE)" \
+            --notes "VERSAO DE HOMOLOGACAO. Um unico aplicativo com conta ADM e visuais Free/Pro/Empresarial. Recibos e orcamentos PDF NAO FISCAIS. Notas fiscais oficiais somente pelo emissor do governo, a partir de link no app; API fiscal ainda nao habilitada. AdMob e UMP integrados com IDs EXCLUSIVAMENTE DE TESTE, sem gerar receita. Sem Google Play Billing e sem planos pagos reais. Chave de assinatura de DEBUG do CI: a instalacao 0.2 podera exigir reinstalacao. Exporte backup antes de instalar; NAO desinstale sem salvar os dados. Teste fisico no TCL ainda pendente." \
+            --prerelease --latest=false
