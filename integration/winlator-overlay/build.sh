@@ -14,8 +14,16 @@ python3 "$ROOT/integration/winlator-overlay/prepare.py" "$WORKDIR/winlator-app"
 APK="$WORKDIR/winlator-app/app/build/outputs/apk/debug/app-debug.apk"
 test -s "$APK" || { echo "FALHA: APK nao produzido" >&2; exit 1; }
 unzip -tqq "$APK"
-unzip -Z1 "$APK" | grep -Fxq 'assets/rootfs.tzst'
-unzip -Z1 "$APK" | grep -Eq '^lib/arm64-v8a/[^/]+\.so$'
+unzip -Z1 "$APK" > "$WORKDIR/apk-entries.txt"
+grep -Fxq 'AndroidManifest.xml' "$WORKDIR/apk-entries.txt"
+grep -Fxq 'classes.dex' "$WORKDIR/apk-entries.txt"
+grep -Fxq 'assets/rootfs.tzst' "$WORKDIR/apk-entries.txt"
+grep -Eq '^lib/arm64-v8a/[^/]+\.so
+OUT="$ROOT/app/build/outputs/apk/debug/TCLDesktop10-debug.apk"
+mkdir -p "$(dirname "$OUT")"
+cp "$APK" "$OUT"
+echo "APK compilado: $OUT (nao validado no TCL fisico)."
+ "$WORKDIR/apk-entries.txt"
 OUT="$ROOT/app/build/outputs/apk/debug/TCLDesktop10-debug.apk"
 mkdir -p "$(dirname "$OUT")"
 cp "$APK" "$OUT"
