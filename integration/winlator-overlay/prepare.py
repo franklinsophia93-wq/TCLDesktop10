@@ -5,7 +5,7 @@ import shutil
 import sys
 from pathlib import Path
 
-APP_ID = "com.tcldesktop.windows"
+APP_ID = "com.tclwin10"
 
 def patch(source: Path):
     app = source / "app"
