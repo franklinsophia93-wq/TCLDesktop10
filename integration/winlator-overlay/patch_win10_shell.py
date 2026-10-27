@@ -50,15 +50,17 @@ def patch(root: Path):
 
     # Programas secundários NÃO encerram o ambiente ao serem fechados.
     guest = guest_file.read_text(encoding="utf-8")
-    # Na inicializacao o XServerDisplayActivity limpa o objeto EnvVars depois de
-    # ligar o Wine. Copiamos as variaveis para os atalhos do menu Iniciar.
+    # Na inicializacao, o XServerDisplayActivity limpa o EnvVars depois
+    # de ligar o Wine. Preservar copia e essencial para aplicativos extras.
     guest = replace_one(
         guest,
-        "    public void setEnvVars(EnvVars envVars) {\\n        this.envVars = envVars;\\n    }".replace("\\\\n", "\\n"),
-        "    public void setEnvVars(EnvVars envVars) {\\n"
-        "        this.envVars = new EnvVars();\\n"
-        "        if (envVars != null) this.envVars.putAll(envVars);\\n"
-        "    }".replace("\\\\n", "\\n"),
+        """    public void setEnvVars(EnvVars envVars) {
+        this.envVars = envVars;
+    }""",
+        """    public void setEnvVars(EnvVars envVars) {
+        this.envVars = new EnvVars();
+        if (envVars != null) this.envVars.putAll(envVars);
+    }""",
         "preserve env for secondaries")
     guest = replace_one(
         guest,
