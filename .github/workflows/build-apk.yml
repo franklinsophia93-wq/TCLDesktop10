@@ -7,6 +7,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: tcldesktop10-apk
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-22.04
@@ -22,10 +26,14 @@ jobs:
       - name: Verificar os componentes Java e o patch
         run: |
           python3 tests/test-runtime-overlay.py
-      - name: Instalar ferramentas Android
-        uses: android-actions/setup-android@v3
-      - name: Instalar Android SDK / NDK / CMake
-        run: sdkmanager --install 'platforms;android-35' 'build-tools;35.0.0' 'ndk;24.0.8215888' 'cmake;3.22.1'
+      - name: Configurar Android SDK preinstalado no GitHub
+        shell: bash
+        run: |
+          SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          test -n "$SDKMANAGER"
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+          "$SDKMANAGER" --install 'platforms;android-35' 'build-tools;35.0.0' 'ndk;24.0.8215888' 'cmake;3.22.1'
       - name: Configurar Gradle
         uses: gradle/actions/setup-gradle@v4
       - name: Compilar TCL Desktop 10 com motor Windows real
