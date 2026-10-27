@@ -30,9 +30,23 @@ def patch(assets: Path):
             with raw_tar.open("wb") as out:
                 subprocess.run(["zstd", "-q", "-dc", str(archive)], stdout=out, check=True)
             with tarfile.open(raw_tar, "r:") as tar:
-                for member in tar:
-                    if "com.winlator" in member.name or "com.winlator" in member.linkname:
-                        raise RuntimeError(f"Caminho TAR precisa de reconstrucao: {archive}: {member.name}")
+                need_rebuild = any("com.winlator" in m.name or "com.winlator" in m.linkname
+                                   for m in tar)
+            # Links simbolicos guardam o caminho no HEADER TAR, com checksum.
+            # Reconstruir esses headers antes do patch binario evita corromper o TAR.
+            if need_rebuild:
+                rebuilt = Path(tmp) / "rebuilt.tar"
+                with tarfile.open(raw_tar, "r:") as source_tar, tarfile.open(
+                    rebuilt, "w:", format=tarfile.GNU_FORMAT
+                ) as destination_tar:
+                    for member in source_tar:
+                        old_name = member.name
+                        old_link = member.linkname
+                        member.name = old_name.replace("com.winlator", "com.tclwin10")
+                        member.linkname = old_link.replace("com.winlator", "com.tclwin10")
+                        payload = source_tar.extractfile(member) if member.isfile() else None
+                        destination_tar.addfile(member, payload)
+                rebuilt.replace(raw_tar)
             count = 0
             with raw_tar.open("r+b") as f, mmap.mmap(f.fileno(), 0) as mm:
                 idx = 0
@@ -46,11 +60,11 @@ def patch(assets: Path):
                 mm.flush()
                 if mm.find(OLD) >= 0:
                     raise RuntimeError(f"Restaram caminhos antigos em {archive}")
-            if count:
+            if count or need_rebuild:
                 subprocess.run(["zstd", "-q", "-f", "-T0", "-5", str(raw_tar), "-o", str(archive)],
                                check=True)
                 hits[archive.relative_to(assets).as_posix()] = count
-                print(f"Caminhos internos corrigidos: {archive.name}: {count}", flush=True)
+                print(f"Caminhos internos corrigidos: {archive.name}: {count} (+header={need_rebuild})", flush=True)
     if hits.get("box64/box64-0.4.4.tzst", 0) < 2:
         raise RuntimeError("O PT_INTERP e RPATH do Box64 nao foram corrigidos")
     if hits.get("rootfs.tzst", 0) < 50:
