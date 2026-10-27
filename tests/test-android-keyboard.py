@@ -32,6 +32,7 @@ activity = """package com.winlator;
 class XServerDisplayActivity {
     void setupUI() {
         touchpadView.setSensitivity(globalCursorSpeed);
+        touchpadView.setMoveCursorToTouchpoint(preferences.getBoolean("move_cursor_to_touchpoint", false));
     }
     public void tclOpenSettings() {
     }
