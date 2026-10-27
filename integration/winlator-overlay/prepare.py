@@ -51,7 +51,18 @@ def patch(source: Path):
         </activity>"""
     manifest = manifest[:match.start()] + original + "\n        " + launcher + manifest[match.end():]
     manifest = manifest.replace("com.winlator.FileProvider", APP_ID + ".FileProvider")
+    old_icon = 'android:icon="@mipmap/ic_launcher"'
+    if old_icon not in manifest:
+        raise RuntimeError("Icone do AndroidManifest mudou; identidade TCL nao aplicada")
+    manifest = manifest.replace(old_icon, 'android:icon="@drawable/tcl_launcher_icon"')
+    # Um eventual icone circular tambem deve ser nosso.
+    manifest = manifest.replace('android:roundIcon="@mipmap/ic_launcher_round"',
+                                'android:roundIcon="@drawable/tcl_launcher_icon"')
     manifest_path.write_text(manifest, encoding="utf-8")
+    drawable = base / "res/drawable"
+    drawable.mkdir(exist_ok=True, parents=True)
+    shutil.copy2(Path(__file__).with_name("tcl_launcher_icon.xml"),
+                 drawable / "tcl_launcher_icon.xml")
 
     gradle_path = app / "build.gradle"
     gradle = gradle_path.read_text(encoding="utf-8")
@@ -60,13 +71,17 @@ def patch(source: Path):
     gradle_path.write_text(gradle.replace("applicationId 'com.winlator'",
                                          "applicationId '" + APP_ID + "'"), encoding="utf-8")
 
-    values = base / "res/values/strings.xml"
-    strings = values.read_text(encoding="utf-8")
-    before = '<string name="app_name">Winlator</string>'
-    if before not in strings:
-        raise RuntimeError("Nome original nao encontrado")
-    values.write_text(strings.replace(before, '<string name="app_name">TCL Desktop 10</string>'),
-                      encoding="utf-8")
+    # O nome localizado sobrescreve o nome principal no Android: atualizar todos.
+    translated_count = 0
+    for values in (base / "res").glob("values*/strings.xml"):
+        strings = values.read_text(encoding="utf-8")
+        updated, count = re.subn(r'(<string name="app_name">).*?(</string>)',
+                                 r'\g<1>TCL Desktop 10\g<2>', strings, count=1)
+        if count:
+            values.write_text(updated, encoding="utf-8")
+            translated_count += 1
+    if translated_count < 2:
+        raise RuntimeError("Nomes de traducao ausentes; verificar identidade TCL")
 
     for file in base.rglob("*.java"):
         data = file.read_text(encoding="utf-8")
