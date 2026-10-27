@@ -1,0 +1,44 @@
+name: Publicar APK de teste NegocioFacil 0.2
+on:
+  push:
+    branches: [negociofacil-android]
+    paths:
+      - '.github/workflows/publish-negociofacil-v02.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - name: Baixar APK Android compilado e validado
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 40600795029
+          repository: franklinsophia93-wq/TCLDesktop10
+          github-token: ${{ github.token }}
+          name: NegocioFacil-0.2-APK
+          path: release
+      - name: Conferir assinatura e versao
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s release/NegocioFacil-0.2-teste.apk
+          unzip -tqq release/NegocioFacil-0.2-teste.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify release/NegocioFacil-0.2-teste.apk
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging release/NegocioFacil-0.2-teste.apk | grep -Fq "package: name='br.com.negociofacil.app'"
+          sha256sum release/NegocioFacil-0.2-teste.apk
+      - name: Publicar download direto
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh release create negociofacil-v0.2-teste release/NegocioFacil-0.2-teste.apk \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "NegocioFacil 0.2 - Modulos profissionais (teste)" \
+            --notes "APLICATIVO DE TESTE. Um unico APK Free/Pro/Empresarial e login ADM local. Inclui relatorios, estoque manual, campanhas manuais, contatos WhatsApp, equipe local e ajuda. Notas fiscais, permissoes remotas, cobrancas e AdMob NAO ativos. Assinado com chave DEBUG temporaria do CI: A ATUALIZACAO DO 0.1 PODE FALHAR. ANTES DE INSTALAR, EXPORTE BACKUP em Mais > Configuracoes > Exportar dados. Se for necessario desinstalar, os dados locais serao apagados; importe o backup depois. Codigo na branch negociofacil-android." \
+            --prerelease --latest=false
