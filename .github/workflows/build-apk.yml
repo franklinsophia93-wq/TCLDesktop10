@@ -29,6 +29,7 @@ jobs:
           python3 tests/test-startup-watchdog.py
           python3 tests/test-box64-health.py
           python3 tests/test-win10-shell.py
+          python3 tests/test-android-keyboard.py
       - name: Configurar Android SDK preinstalado no GitHub
         shell: bash
         run: |
