@@ -26,10 +26,10 @@ grep -Eq '^lib/arm64-v8a/[^/]+\.so$' "$WORKDIR/apk-entries.txt"
 # Garante que o APK contem Box64 com o carregador apontando para NOSSO pacote.
 unzip -p "$APK" 'assets/box64/box64-0.4.4.tzst' > "$WORKDIR/box64.tzst"
 zstd -dc "$WORKDIR/box64.tzst" | tar -xf - -C "$WORKDIR" './usr/local/bin/box64'
-readelf -l "$WORKDIR/usr/local/bin/box64" | grep -Fq '/data/data/com.tclwin10/files/rootfs/lib/ld-linux-aarch64.so.1'
+readelf -l "$WORKDIR/usr/local/bin/box64" | grep -Fq '/data/data/com.tclwin11/files/rootfs/lib/ld-linux-aarch64.so.1'
 ! strings "$WORKDIR/usr/local/bin/box64" | grep -Fq '/data/data/com.winlator'
 # A etiqueta Android tambem deve identificar o app correto.
-"$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -Fq "package: name='com.tclwin10'"
+"$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -Fq "package: name='com.tclwin11'"
 OUT="$ROOT/app/build/outputs/apk/debug/TCLDesktop10-debug.apk"
 mkdir -p "$(dirname "$OUT")"
 cp "$APK" "$OUT"
