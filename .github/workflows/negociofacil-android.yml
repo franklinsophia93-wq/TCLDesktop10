@@ -1,90 +1,61 @@
-name: NegocioFacil - APK Android unico (Free Pro Empresarial)
+name: NegocioFacil Android 0.2 - teste
 on:
   push:
-    branches:
-      - negociofacil-android
+    branches: [negociofacil-android]
     paths:
-      - negociofacil/source-admin-v0.1.zip.b64
-      - .github/workflows/negociofacil-android.yml
+      - 'negociofacil/NegocioFacil-src.zip'
+      - '.github/workflows/negociofacil-android.yml'
   workflow_dispatch:
 
 permissions:
-  contents: write
-
-concurrency:
-  group: negociofacil-android-build
-  cancel-in-progress: true
+  contents: read
 
 jobs:
   build:
     runs-on: ubuntu-22.04
-    timeout-minutes: 40
+    timeout-minutes: 35
     steps:
-      - name: Obter codigo Android NegocioFacil
+      - name: Obter codigo do projeto
         uses: actions/checkout@v4
-      - name: Descompactar o projeto separado do TCL Desktop 10
+      - name: Preparar ambiente
         run: |
-          set -euo pipefail
-          mkdir -p negociofacil-src
-          base64 -d negociofacil/source-admin-v0.1.zip.b64 > "$RUNNER_TEMP/negociofacil-source.zip"
-          unzip -tqq "$RUNNER_TEMP/negociofacil-source.zip"
-          unzip -q "$RUNNER_TEMP/negociofacil-source.zip" -d negociofacil-src
-          test -s negociofacil-src/web/app.js
-          test -s negociofacil-src/android/app/src/main/java/br/com/negociofacil/app/MainActivity.java
-          grep -q 'adminState()' negociofacil-src/android/app/src/main/java/br/com/negociofacil/app/MainActivity.java
-          grep -q 'setAdminTestPlan' negociofacil-src/android/app/src/main/java/br/com/negociofacil/app/MainActivity.java
-      - name: Preparar Java 17
+          mkdir -p build-src
+          unzip -q negociofacil/NegocioFacil-src.zip -d build-src
+          test -s build-src/web/app.js
+          test -s build-src/android/app/build.gradle
+          grep -q "versionCode 2" build-src/android/app/build.gradle
+          node --check build-src/web/app.js
+      - name: Configurar Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-      - name: Configurar SDK Android preinstalado
-        shell: bash
-        run: |
-          set -euo pipefail
-          SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
-          SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | head -n 1)"
-          test -n "$SDKMANAGER"
-          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
-          "$SDKMANAGER" --install 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Configurar SDK Android
+        uses: android-actions/setup-android@v3
+      - name: Instalar plataforma Android 35
+        run: sdkmanager --install 'platforms;android-35' 'build-tools;35.0.0'
       - name: Configurar Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Validar JavaScript e recursos
-        run: |
-          node --check negociofacil-src/web/app.js
-          test -s negociofacil-src/web/index.html
-          test -s negociofacil-src/web/style.css
-          test -s negociofacil-src/web/icon-192.png
-      - name: Compilar APK ARM64 e Android 13
-        run: gradle -p negociofacil-src/android --no-daemon --max-workers=2 --stacktrace assembleDebug
-      - name: Verificar integridade e identidade do APK
+      - name: Compilar unico APK
+        run: gradle -p build-src/android --no-daemon --max-workers=2 -Dorg.gradle.jvmargs="-Xmx3g -XX:MaxMetaspaceSize=512m" :app:assembleDebug
+      - name: Verificar APK
+        shell: bash
         run: |
           set -euo pipefail
-          APK=negociofacil-src/android/app/build/outputs/apk/debug/app-debug.apk
+          APK=build-src/android/app/build/outputs/apk/debug/app-debug.apk
           test -s "$APK"
           unzip -tqq "$APK"
-          unzip -Z1 "$APK" > "$RUNNER_TEMP/entries.txt"
-          grep -Fxq 'classes.dex' "$RUNNER_TEMP/entries.txt"
-          grep -Fxq 'assets/www/index.html' "$RUNNER_TEMP/entries.txt"
-          grep -Fxq 'assets/www/app.js' "$RUNNER_TEMP/entries.txt"
-          grep -Fxq 'assets/www/style.css' "$RUNNER_TEMP/entries.txt"
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -Fq "package: name='br.com.negociofacil.app'"
-          cp "$APK" NegocioFacil-0.1-ADM-teste.apk
-          sha256sum NegocioFacil-0.1-ADM-teste.apk
-      - name: Arquivar APK para download
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -Fq "versionCode='2'"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$APK"
+          cp "$APK" NegocioFacil-0.2-teste.apk
+          sha256sum NegocioFacil-0.2-teste.apk
+          echo 'ATENCAO: ASSINATURA DE DEBUG DO CI. ESTA COMPILACAO PODE NAO ATUALIZAR A VERSAO 0.1 INSTALADA.'
+      - name: Enviar APK de teste
         uses: actions/upload-artifact@v4
         with:
-          name: NegocioFacil-Android-APK-ADM
-          path: NegocioFacil-0.1-ADM-teste.apk
+          name: NegocioFacil-0.2-APK
+          path: NegocioFacil-0.2-teste.apk
           if-no-files-found: error
-      - name: Publicar download direto no GitHub Releases
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release create negociofacil-0.1-admin-test NegocioFacil-0.1-ADM-teste.apk \
-            --repo "$GITHUB_REPOSITORY" --target negociofacil-android \
-            --title "NegócioFácil 0.1 - Teste Android e conta ADM" \
-            --notes "APK Android de TESTE (não comercial). Um único app: Gratuito claro, Pro e Empresarial escuros. Conta ADM local: em Mais > Administração, criar senha na primeira abertura e login com usuário admin; alternar os planos na mesma conta. Clientes, agenda, catálogo, vendas, despesas, orçamentos de texto e backup locais. Funções avançadas, AdMob, assinaturas, cobrança e login em nuvem NÃO estão implementados. Testes no celular ainda pendentes. Não excluir sem fazer backup." \
-            --prerelease --latest=false
