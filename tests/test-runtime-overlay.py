@@ -12,7 +12,7 @@ spec.loader.exec_module(mod)
 
 manifest = """<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.winlator">
-<application android:label="@string/app_name">
+<application android:label="@string/app_name" android:icon="@mipmap/ic_launcher">
 <activity android:name="com.winlator.MainActivity"
     android:theme="@style/AppThemeDark"
     android:exported="true"
@@ -38,6 +38,11 @@ with tempfile.TemporaryDirectory() as tmp:
     (base / "AndroidManifest.xml").write_text(manifest)
     (values / "strings.xml").write_text(
         '<resources><string name="app_name">Winlator</string></resources>')
+    for lang in ("pt", "ru"):
+        translated = base / ("res/values-" + lang)
+        translated.mkdir(exist_ok=True)
+        (translated / "strings.xml").write_text(
+            '<resources><string name="app_name">Winlator</string></resources>')
     (work / "app/build.gradle").write_text("applicationId 'com.winlator'")
     (work / "LICENSE").write_text("Upstream test fixture")
     (assets / "rootfs.tzst").write_bytes(b"0" * 10_000_001)
@@ -51,8 +56,12 @@ with tempfile.TemporaryDirectory() as tmp:
     assert "com.winlator.TclDesktopActivity" in rewritten
     assert "com.tcldesktop.windows.FileProvider" in rewritten
     assert "com.winlator.FileProvider" not in rewritten
+    assert 'android:icon="@drawable/tcl_launcher_icon"' in rewritten
+    assert (base / "res/drawable/tcl_launcher_icon.xml").exists()
     assert "com.tcldesktop.windows" in (work / "app/build.gradle").read_text()
     assert "TCL Desktop 10" in (values / "strings.xml").read_text()
+    assert "TCL Desktop 10" in (base / "res/values-pt/strings.xml").read_text()
+    assert "TCL Desktop 10" in (base / "res/values-ru/strings.xml").read_text()
     assert "com.tcldesktop.windows.FileProvider" in (java / "ProviderUse.java").read_text()
     assert (java / "TclDesktopActivity.java").exists()
     assert (assets / "tcl-licenses/WINLATOR-LICENSE.txt").exists()
