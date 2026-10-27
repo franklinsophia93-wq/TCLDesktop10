@@ -75,11 +75,13 @@ def patch(root: Path):
         "keyboard callback")
 
     activity = one(activity,
-        "        touchpadView.setSensitivity(globalCursorSpeed);",
+        """        touchpadView.setSensitivity(globalCursorSpeed);
+        touchpadView.setMoveCursorToTouchpoint(""",
         """        touchpadView.setSensitivity(globalCursorSpeed);
         if (container != null && shortcut == null && !getIntent().hasExtra("exec_path")) {
             touchpadView.setTclKeyboardRequestedCallback(this::tclOpenAndroidKeyboard);
-        }""",
+        }
+        touchpadView.setMoveCursorToTouchpoint(""",
         "activate keyboard gesture on desktop only")
 
     activity = one(activity,
