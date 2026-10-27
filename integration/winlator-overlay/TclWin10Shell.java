@@ -40,7 +40,10 @@ public final class TclWin10Shell extends FrameLayout {
         startMenu.setPadding(dp(15), dp(12), dp(15), dp(12));
         startMenu.setBackground(shape(0xF41B2635, 8, 0xFF34455E));
         startMenu.setVisibility(View.GONE);
-        LayoutParams panelParams = new LayoutParams(dp(366), dp(450), Gravity.START | Gravity.BOTTOM);
+        int availableDp = (int)(getResources().getDisplayMetrics().heightPixels
+                / getResources().getDisplayMetrics().density);
+        int panelHeight = Math.max(175, Math.min(450, availableDp - 60));
+        LayoutParams panelParams = new LayoutParams(dp(366), dp(panelHeight), Gravity.START | Gravity.BOTTOM);
         panelParams.leftMargin = dp(8);
         panelParams.bottomMargin = dp(44);
         addView(startMenu, panelParams);
