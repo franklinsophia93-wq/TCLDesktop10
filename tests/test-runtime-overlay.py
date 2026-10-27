@@ -65,19 +65,19 @@ with tempfile.TemporaryDirectory() as tmp:
     rewritten = (base / "AndroidManifest.xml").read_text()
     assert rewritten.count("android.intent.action.MAIN") == 1
     assert "com.winlator.TclDesktopActivity" in rewritten
-    assert "com.tclwin10.FileProvider" in rewritten
+    assert "com.tclwin11.FileProvider" in rewritten
     assert "com.winlator.FileProvider" not in rewritten
     assert 'android:icon="@drawable/tcl_launcher_icon"' in rewritten
     assert (base / "res/drawable/tcl_launcher_icon.xml").exists()
-    assert "com.tclwin10" in (work / "app/build.gradle").read_text()
+    assert "com.tclwin11" in (work / "app/build.gradle").read_text()
     assert "TCL Desktop 10" in (values / "strings.xml").read_text()
     assert "TCL Desktop 10" in (base / "res/values-pt/strings.xml").read_text()
     assert "TCL Desktop 10" in (base / "res/values-ru/strings.xml").read_text()
-    assert "com.tclwin10.FileProvider" in (java / "ProviderUse.java").read_text()
+    assert "com.tclwin11.FileProvider" in (java / "ProviderUse.java").read_text()
     for relative, old_path in hardcoded:
         content = (base / relative).read_text()
         assert old_path not in content, relative
-        assert "/data/data/com.tclwin10/" in content, relative
+        assert "/data/data/com.tclwin11/" in content, relative
     assert (java / "TclDesktopActivity.java").exists()
     assert (assets / "tcl-licenses/WINLATOR-LICENSE.txt").exists()
     print("Verificacoes do overlay aprovadas (sem compilacao ou teste Wine).")
