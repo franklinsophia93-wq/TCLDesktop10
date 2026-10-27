@@ -10,6 +10,7 @@ git clone --no-checkout "$UPSTREAM" "$WORKDIR/winlator-app"
 git -C "$WORKDIR/winlator-app" checkout --detach "$COMMIT"
 python3 "$ROOT/integration/winlator-overlay/prepare.py" "$WORKDIR/winlator-app"
 python3 "$ROOT/integration/winlator-overlay/patch_startup.py" "$WORKDIR/winlator-app"
+python3 "$ROOT/integration/winlator-overlay/patch_box64_health.py" "$WORKDIR/winlator-app"
 python3 "$ROOT/integration/winlator-overlay/patch_runtime_assets.py" "$WORKDIR/winlator-app/app/src/main/assets"
 
 (cd "$WORKDIR/winlator-app" && chmod +x gradlew && ./gradlew --no-daemon :app:assembleDebug)
