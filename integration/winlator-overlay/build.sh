@@ -9,6 +9,7 @@ mkdir -p "$WORKDIR"
 git clone --no-checkout "$UPSTREAM" "$WORKDIR/winlator-app"
 git -C "$WORKDIR/winlator-app" checkout --detach "$COMMIT"
 python3 "$ROOT/integration/winlator-overlay/prepare.py" "$WORKDIR/winlator-app"
+python3 "$ROOT/integration/winlator-overlay/patch_startup.py" "$WORKDIR/winlator-app"
 
 (cd "$WORKDIR/winlator-app" && chmod +x gradlew && ./gradlew --no-daemon :app:assembleDebug)
 APK="$WORKDIR/winlator-app/app/build/outputs/apk/debug/app-debug.apk"
