@@ -15,7 +15,7 @@ python3 "$ROOT/integration/winlator-overlay/patch_win10_shell.py" "$WORKDIR/winl
 python3 "$ROOT/integration/winlator-overlay/patch_android_keyboard.py" "$WORKDIR/winlator-app"
 python3 "$ROOT/integration/winlator-overlay/patch_runtime_assets.py" "$WORKDIR/winlator-app/app/src/main/assets"
 
-(cd "$WORKDIR/winlator-app" && chmod +x gradlew && ./gradlew --no-daemon :app:assembleDebug)
+(cd "$WORKDIR/winlator-app" && chmod +x gradlew && ./gradlew --no-daemon --max-workers=2 -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=768m -Dfile.encoding=UTF-8" :app:assembleDebug)
 APK="$WORKDIR/winlator-app/app/build/outputs/apk/debug/app-debug.apk"
 test -s "$APK" || { echo "FALHA: APK nao produzido" >&2; exit 1; }
 unzip -tqq "$APK"
