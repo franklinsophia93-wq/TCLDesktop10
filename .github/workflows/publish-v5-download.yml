@@ -1,0 +1,46 @@
+name: Disponibilizar APK TCL Desktop 10 V5 para download direto
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-v5-download.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - name: Baixar APK ja compilado e aprovado do GitHub Actions
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 40529340363
+          repository: franklinsophia93-wq/TCLDesktop10
+          github-token: ${{ github.token }}
+          name: TCLDesktop10-APK-teste
+          path: release
+      - name: Verificar APK do TCL Desktop 10
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s release/TCLDesktop10-debug.apk
+          unzip -tqq release/TCLDesktop10-debug.apk
+          unzip -Z1 release/TCLDesktop10-debug.apk > release/entries.txt
+          grep -Fxq 'assets/rootfs.tzst' release/entries.txt
+          grep -Fxq 'assets/box64/box64-0.4.4.tzst' release/entries.txt
+          mv release/TCLDesktop10-debug.apk release/TCLDesktop10-v5.apk
+          sha256sum release/TCLDesktop10-v5.apk
+      - name: Publicar link direto no GitHub Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh release create "v5-box64" "release/TCLDesktop10-v5.apk" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "TCL Desktop 10 V5 (teste ARM64)" \
+            --notes "APK de teste personalizado para TCL 40 NXTPAPER 4G. Base técnica Winlator/Wine/Box64. Compilado e verificado estruturalmente; funcionamento no aparelho ainda não foi confirmado. Versão do artefato: GitHub Actions run 40529340363. Não desinstale versões anteriores sem salvar os contêineres." \
+            --prerelease --latest=false
