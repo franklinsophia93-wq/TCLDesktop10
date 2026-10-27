@@ -1,0 +1,50 @@
+name: TCL Desktop 10 V7 - publicar teclado Android
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-v7-keyboard.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - name: Baixar APK V7 compilado
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 40537673557
+          repository: franklinsophia93-wq/TCLDesktop10
+          github-token: ${{ github.token }}
+          name: TCLDesktop10-APK-teste
+          path: release
+      - name: Validar APK e pacote Android
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s release/TCLDesktop10-debug.apk
+          unzip -tqq release/TCLDesktop10-debug.apk
+          unzip -Z1 release/TCLDesktop10-debug.apk > release/entries.txt
+          grep -Fxq 'classes.dex' release/entries.txt
+          grep -Fxq 'assets/rootfs.tzst' release/entries.txt
+          grep -Fxq 'assets/box64/box64-0.4.4.tzst' release/entries.txt
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq aapt
+          aapt dump badging release/TCLDesktop10-debug.apk | grep -Fq "package: name='com.tclwin11'"
+          mv release/TCLDesktop10-debug.apk release/TCLDesktop10-v7.apk
+          sha256sum release/TCLDesktop10-v7.apk
+      - name: Publicar link direto V7
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh release create v7-android-keyboard release/TCLDesktop10-v7.apk \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "TCL Desktop 10 V7 - Teclado Android" \
+            --notes "VERSAO DE TESTE ARM64. Teclado nativo Android pelo botao na barra de tarefas ou duplo toque no campo do Wine. Pode nao detectar todo campo de texto automaticamente. Visual Windows 10 e runtime Wine/Box64 baseados no Winlator. Pacote com.tclwin11; assinatura debug pode exigir desinstalacao com perda dos dados anteriores. Testes fisicos pendentes." \
+            --prerelease --latest=false
