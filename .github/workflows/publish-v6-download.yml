@@ -1,0 +1,48 @@
+name: Publicar TCL Desktop 10 V6 para teste visual
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-v6-download.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - name: Baixar APK compilado da revisao Windows 10
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 40535125527
+          repository: franklinsophia93-wq/TCLDesktop10
+          github-token: ${{ github.token }}
+          name: TCLDesktop10-APK-teste
+          path: release
+      - name: Verificar integridade e identidade do APK
+        run: |
+          set -euo pipefail
+          test -s release/TCLDesktop10-debug.apk
+          unzip -tqq release/TCLDesktop10-debug.apk
+          unzip -Z1 release/TCLDesktop10-debug.apk > release/entries.txt
+          grep -Fxq 'assets/rootfs.tzst' release/entries.txt
+          grep -Fxq 'assets/box64/box64-0.4.4.tzst' release/entries.txt
+          grep -Fxq 'classes.dex' release/entries.txt
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq aapt
+          aapt dump badging release/TCLDesktop10-debug.apk | grep -Fq "package: name='com.tclwin11'"
+          mv release/TCLDesktop10-debug.apk release/TCLDesktop10-v6.apk
+          sha256sum release/TCLDesktop10-v6.apk
+      - name: Publicar V6 para teste no GitHub Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create v6-win10-visual release/TCLDesktop10-v6.apk \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "TCL Desktop 10 V6 - novo visual de desktop Windows 10" \
+            --notes "VERSAO DE TESTE. Nova barra de tarefas e menu Iniciar, comandos reais Wine, e papel de parede azul Windows 10 criado dentro do Wine. APK ARM64 e interface personalizada; o motor e baseado em Winlator/Wine/Box64. Funcionamento visual e programas no TCL 40 NXTPAPER 4G ainda requerem teste fisico. Pacote Android com.tclwin11 diferente da V5 para preservar dados anteriores." \
+            --prerelease --latest=false
