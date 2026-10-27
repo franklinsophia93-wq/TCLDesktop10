@@ -22,6 +22,9 @@ class XServerDisplayActivity {
 }
 """
 guest = """class GuestProgramLauncherComponent {
+    public void setEnvVars(EnvVars envVars) {
+        this.envVars = envVars;
+    }
     private int execGuestProgram() {
         String command = rootDir+"/usr/local/bin/box64 "+guestExecutable;
         return ProcessHelper.exec(command, envVars, rootDir, null);
@@ -57,6 +60,7 @@ with tempfile.TemporaryDirectory() as tmp:
     assert "new TclWin10Shell(this)" in patched
     assert "tclWin10VisualVersion" in patched
     assert "if (!mainDesktop) return ProcessHelper.exec" in guest_patched
+    assert "this.envVars = new EnvVars();" in guest_patched
     assert "createTclWin10Wallpaper" in themed
     assert "MSBitmap.create(bitmap" in themed
     for caption in ("Explorador de Arquivos", "Este Computador", "Bloco de notas", "Executar programa .exe"):
