@@ -1,4 +1,4 @@
-name: NegocioFacil 0.5 - primeiro APK com assinatura permanente
+name: NegocioFacil 0.6 - primeiro APK com assinatura permanente
 on:
   workflow_dispatch:
 
@@ -12,7 +12,7 @@ jobs:
     steps:
       - name: Checkout do codigo de NegocioFacil
         uses: actions/checkout@v4
-      - name: Descompactar e aplicar revisoes ate 0.5
+      - name: Descompactar e aplicar revisoes ate 0.6
         shell: bash
         run: |
           set -euo pipefail
@@ -23,8 +23,10 @@ jobs:
           python3 negociofacil/upgrade_v03.py build-src
           python3 negociofacil/upgrade_v04_admob.py build-src
           python3 negociofacil/upgrade_v05_sharing.py build-src
+          python3 negociofacil/upgrade_v06_cloud.py build-src
+          node --check build-src/web/nf-cloud.js
           node --check build-src/web/app.js
-          grep -q "versionCode 5" build-src/android/app/build.gradle
+          grep -q "versionCode 6" build-src/android/app/build.gradle
           grep -q "applicationId 'br.com.negociofacil.app'" build-src/android/app/build.gradle
       - name: Java 17
         uses: actions/setup-java@v4
@@ -80,8 +82,8 @@ jobs:
             --ks-key-alias "$NF_KEY_ALIAS" \
             --ks-pass env:NF_KEYSTORE_PASSWORD \
             --key-pass env:NF_KEY_PASSWORD \
-            --out NegocioFacil-0.5-assinado.apk "$ALIGNED"
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs NegocioFacil-0.5-assinado.apk > assinatura.txt
+            --out NegocioFacil-0.6-assinado.apk "$ALIGNED"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs NegocioFacil-0.6-assinado.apk > assinatura.txt
           DIGEST="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' assinatura.txt | head -n1)"
           if test -z "$DIGEST"; then
             echo "::error::Assinatura nao foi validada"; exit 1
@@ -95,17 +97,17 @@ jobs:
           else
             echo "::notice::Primeira assinatura: configure NF_SIGNING_CERT_SHA256 nas Variables do repositorio com o fingerprint publicado em certificado-sha256.txt."
           fi
-          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging NegocioFacil-0.5-assinado.apk | grep -Fq "package: name='br.com.negociofacil.app'"
-          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging NegocioFacil-0.5-assinado.apk | grep -Fq "versionCode='5'"
-          unzip -tqq NegocioFacil-0.5-assinado.apk
-          sha256sum NegocioFacil-0.5-assinado.apk
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging NegocioFacil-0.6-assinado.apk | grep -Fq "package: name='br.com.negociofacil.app'"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging NegocioFacil-0.6-assinado.apk | grep -Fq "versionCode='6'"
+          unzip -tqq NegocioFacil-0.6-assinado.apk
+          sha256sum NegocioFacil-0.6-assinado.apk
           echo "APK release assinado, alinhado e validado; nunca distribuir assinatura DEBUG para quem instalou release."
       - name: Publicar artifact apenas apos assinatura verificada
         uses: actions/upload-artifact@v4
         with:
-          name: NegocioFacil-0.5-ASSINADO-com-chave-permanente
+          name: NegocioFacil-0.6-ASSINADO-com-chave-permanente
           path: |
-            NegocioFacil-0.5-assinado.apk
+            NegocioFacil-0.6-assinado.apk
             assinatura.txt
             certificado-sha256.txt
           if-no-files-found: error
