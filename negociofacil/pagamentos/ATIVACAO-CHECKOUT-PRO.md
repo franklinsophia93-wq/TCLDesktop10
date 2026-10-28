@@ -5,9 +5,9 @@
 ## Serviços publicados
 - Supabase próprio: https://supabase.com/dashboard/project/tlqcpfmkneohjleiynqe
 - OAuth por vendedor: `https://tlqcpfmkneohjleiynqe.supabase.co/functions/v1/nf-mercadopago`
-- Checkout Pro: `https://tlqcpfmkneohjleiynqe.supabase.co/functions/v1/nf-checkout`
-- Diagnóstico sem segredos: `https://tlqcpfmkneohjleiynqe.supabase.co/functions/v1/nf-checkout/health`
-- Webhook de pagamento: `https://tlqcpfmkneohjleiynqe.supabase.co/functions/v1/nf-checkout/webhook`
+- Checkout Pro: `https://tlqcpfmkneohjleiynqe.supabase.co/functions/v1/nf-payments`
+- Diagnóstico sem segredos: `https://tlqcpfmkneohjleiynqe.supabase.co/functions/v1/nf-payments/health`
+- Webhook de pagamento: `https://tlqcpfmkneohjleiynqe.supabase.co/functions/v1/nf-payments/webhook`
 
 ## Preparação da integração no Mercado Pago Developers (NÃO enviar chaves pelo chat)
 1. Abra a aplicação **NegócioFácil** no Mercado Pago Developers.
@@ -15,7 +15,7 @@
 3. Use a URL de Webhook acima e salve.
 4. Na tela de Webhooks do Mercado Pago, revele a **Assinatura secreta** (NÃO confundir com Access Token, Client Secret ou Public Key).
 5. Abra o painel Supabase do NegocioFacil > Edge Functions > Secrets; registre **MP_WEBHOOK_SECRET** com o valor da assinatura secreta, sem compartilhar, sem salvar em GitHub e sem colocá-lo no APK.
-6. Enquanto não houver um pagamento de sandbox validado, mantenha `MP_PAYMENTS_ENABLED` **ausente ou igual a false** e `MP_PAYMENTS_MODE=test`. Os segredos de teste e produção podem ser diferentes; nunca misture.
+6. Enquanto não houver um pagamento de sandbox validado, mantenha `NF_CHECKOUT_ENABLED` **ausente ou igual a false** e `NF_CHECKOUT_MODE=test`. Os segredos de teste e produção podem ser diferentes; nunca misture.
 
 ## Requisitos adicionais antes de receber dinheiro real
 - Criar login Supabase Auth e negócio de teste no APK Android com **assinatura permanente**.
@@ -23,8 +23,15 @@
 - Testar checkout de teste, Webhook válido/inválido, Pix pendente/aprovado, cartão aprovado/rejeitado, idempotência de notificação, estorno e chargeback.
 - Confirmar que a rotina de conciliação nunca admite saldo da empresa errada, valor errado ou webhook forjado.
 - Confirmar no Mercado Pago se a aplicação está aprovada para modo produtivo e se os vendedores podem receber.
-- Apenas após homologação técnica, armazenar no cofre do Supabase `MP_PAYMENTS_ENABLED=true` e `MP_PAYMENTS_MODE=production` junto à assinatura de Webhook de produção; **essa mudança ativa a solicitação de cobranças reais**, e somente deve ocorrer após a avaliação de risco e aceite explícito.
+- Apenas após homologação técnica, armazenar no cofre do Supabase `NF_CHECKOUT_ENABLED=true` e `NF_CHECKOUT_MODE=live` junto à assinatura de Webhook de produção; **essa mudança ativa a solicitação de cobranças reais**, e somente deve ocorrer após a avaliação de risco e aceite explícito.
 - A emissão de documentos fiscais oficiais e assinaturas de planos digitais são integrações separadas.
+
+## Consolidação das integrações
+- O único serviço de checkout é `nf-payments`; `nf-checkout` foi desativado para evitar dois caminhos concorrentes de cobrança.
+- A interface Android 0.7 consulta exclusivamente `nf-payments`, associando as vendas ao negócio autenticado.
+- A função de login é `nf-mercadopago` e permite apenas autorização OAuth, não cobra.
+- A ativação exige `NF_CHECKOUT_ENABLED=true` (não habilitar antes da homologação) e `NF_CHECKOUT_MODE=test` para ensaios ou `live` para produção.
+- Nunca usar `MP_PAYMENTS_ENABLED`: esse nome pertencia ao módulo duplicado, já desativado.
 
 ## Modelo de negócio
 - Cada venda usa o **access token OAuth do próprio vendedor** para criar preferência `/checkout/preferences`.
