@@ -45,3 +45,31 @@ test('busca status oficial no Mercado Pago',async()=>{
  }});
  assert.equal(result.id,321);
 });
+
+
+test('nenhuma taxa do NegócioFácil é incluída ao criar uma cobrança',async()=>{
+ const checked=await createCheckout({sale,seller,accessToken:'token-do-vendedor',backendUrl:'https://backend.example.org',fetchImpl:async(url,req)=>{
+  const json=JSON.parse(req.body);
+  assert.equal(Object.hasOwn(json,'marketplace_fee'),false);
+  assert.equal(Object.hasOwn(json,'application_fee'),false);
+  assert.equal(Object.hasOwn(json,'split_payments'),false);
+  assert.equal(json.external_reference,sale.externalReference);
+  assert.equal(req.headers.Authorization,'Bearer token-do-vendedor');
+  return {ok:true,json:async()=>({id:'pref-0',init_point:'https://www.mercadopago.com.br/checkout'})};
+ }});
+ assert.equal(checked.preferenceId,'pref-0');
+});
+test('impede criar checkout para venda de outra empresa',async()=>{
+ let sent=false;
+ await assert.rejects(createCheckout({
+  sale:{...sale,businessId:'outra-empresa'},
+  seller,accessToken:'token-do-vendedor',backendUrl:'https://backend.example.org',
+  fetchImpl:async()=>{sent=true;throw new Error('nao deveria chamar API');}
+ }),/Vendedor inválido/);
+ assert.equal(sent,false);
+});
+test('Pix confirmado por conta correta pode ser conciliado, Pix pendente não',()=>{
+ const approvedPix={...payment,payment_type_id:'bank_transfer'};
+ assert.equal(reconcilePayment(approvedPix,sale,seller).accepted,true);
+ assert.equal(reconcilePayment({...approvedPix,status:'pending'},sale,seller).accepted,false);
+});
