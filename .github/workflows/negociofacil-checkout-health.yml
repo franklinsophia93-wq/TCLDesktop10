@@ -5,6 +5,7 @@ on:
     paths:
       - '.github/workflows/negociofacil-checkout-health.yml'
       - 'negociofacil/backend/checkout.ts'
+      - 'negociofacil/backend/payments.ts'
   workflow_dispatch:
 permissions:
   contents: read
@@ -37,3 +38,27 @@ jobs:
           code="$(curl -sS --max-time 20 -o /tmp/unauth-webhook.json -w '%{http_code}' -X POST -H 'content-type: application/json' --data '{"type":"payment","data":{"id":"123"}}' "$BASE/webhook")"
           test "$code" = 503 || { echo "Falha: Webhook nao configurado HTTP $code"; exit 1; }
           echo 'Webhook antes da homologacao bloqueado: SIM'
+
+      - name: Confirmar gateway novo e recusar venda anonima
+        shell: bash
+        env:
+          BASE: https://tlqcpfmkneohjleiynqe.supabase.co/functions/v1/nf-payments
+        run: |
+          set -euo pipefail
+          curl -fsS --max-time 20 "$BASE/health" -o /tmp/nf-health-new.json
+          python3 - <<'PY'
+          import json
+          o=json.load(open('/tmp/nf-health-new.json'))
+          assert o['service']=='NegocioFacil Checkout Pro'
+          assert type(o['checkout_enabled'])==bool
+          assert type(o['webhook_ready'])==bool
+          assert o['mode'] in ('test','live')
+          assert not(o['checkout_enabled'] and not o['webhook_ready'])
+          assert o['secret_values_exposed'] is False
+          print('Gateway online; checkout ativo:',o['checkout_enabled'],'Webhooks assinados:',o['webhook_ready'])
+          PY
+          status=$(curl -sS --max-time 20 -o /tmp/nf-anon-new.json -w '%{http_code}' -X POST -H 'Content-Type: application/json' --data '{"business_id":"00000000-0000-4000-8000-000000000000","description":"Teste","amount_cents":100}' "$BASE/sales")
+          test "$status" = 401
+          status=$(curl -sS --max-time 20 -o /tmp/nf-webhook-new.json -w '%{http_code}' -X POST -H 'Content-Type: application/json' --data '{"data":{"id":"123"},"type":"payment","user_id":123}' "$BASE/webhook?data.id=123")
+          test "$status" = 401 -o "$status" = 503
+          echo 'Login exigido e webhook não autenticado rejeitado'
