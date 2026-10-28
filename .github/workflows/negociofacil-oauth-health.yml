@@ -1,0 +1,39 @@
+name: NegocioFacil - Verificar OAuth sem exibir segredos
+on:
+  push:
+    branches: [negociofacil-android]
+    paths:
+      - '.github/workflows/negociofacil-oauth-health.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Diagnosticar readiness sem abrir credenciais
+        env:
+          HEALTH_URL: https://tlqcpfmkneohjleiynqe.supabase.co/functions/v1/nf-mercadopago/health
+        run: |
+          set -euo pipefail
+          curl -fsS --max-time 20 -H 'Accept: application/json' "$HEALTH_URL" -o /tmp/nf-health.json
+          python3 - <<'PY'
+          import json
+          data=json.load(open('/tmp/nf-health.json'))
+          assert data.get('service')=='NegocioFacil Mercado Pago OAuth', 'Serviço incorreto'
+          assert data.get('payments_enabled') is False, 'Pagamento real não pode estar habilitado neste teste'
+          configured=data.get('configured')
+          if not isinstance(configured,bool): raise ValueError('Status inválido')
+          print('Servidor OAuth online: SIM')
+          print('Credenciais suficientes configuradas: '+('SIM' if configured else 'NÃO'))
+          print('Pagamentos reais desativados: SIM')
+          if not configured: raise SystemExit('Falta ao menos um secret; confira no Supabase.')
+          PY
+      - name: Garantir que OAuth não aceite pedidos anônimos
+        env:
+          BASE_URL: https://tlqcpfmkneohjleiynqe.supabase.co/functions/v1/nf-mercadopago
+        run: |
+          code=$(curl -sS -o /tmp/nf-unauthorized.json -w '%{http_code}' --max-time 20 -X POST -H 'content-type: application/json' --data '{"business_id":"00000000-0000-4000-8000-000000000000"}' "$BASE_URL/oauth/start")
+          test "$code" = 401 || { echo "ERRO: OAuth anônimo retornou HTTP $code"; exit 1; }
+          echo 'OAuth anônimo bloqueado com HTTP 401: SIM'
