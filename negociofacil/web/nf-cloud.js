@@ -103,7 +103,7 @@ async function authenticate(form){
   const registering=form.dataset.register==='1';
   const result=await api(registering?'/auth/v1/signup':'/auth/v1/token?grant_type=password',{method:'POST',body:{email,password}});
   form.elements.namedItem('password').value='';
-  if(result.access_token){saveSession(result);await open();return;}
+  if(result.access_token){saveSession(result);const ok=await load();if(ok){if(business)showDashboard();else showBusiness();}else showLogin();return;}
   if(registering){showLogin(false);notice('Cadastro solicitado. Confirme o e-mail recebido antes de entrar.');}
   else notice('Login não confirmado. Verifique seu e-mail e sua senha.');
  }catch(e){form.elements.namedItem('password').value='';notice('Não foi possível entrar: '+e.message);}
@@ -160,5 +160,7 @@ document.addEventListener('submit',event=>{
  if(event.target.id==='nf-cloud-login-form'){event.preventDefault();void authenticate(event.target);}
  if(event.target.id==='nf-cloud-business-form'){event.preventDefault();void createBusiness(event.target);}
 });
+const existingBack=window.NegocioFacilBack;
+window.NegocioFacilBack=()=>{if(els()){els().remove();return true;}return typeof existingBack==='function'?existingBack():false;};
 window.NegocioFacilCloudStatus=()=>({signedIn:!!user,businessId:business?.id||null,connected,stage:'homologacao'});
 })();
