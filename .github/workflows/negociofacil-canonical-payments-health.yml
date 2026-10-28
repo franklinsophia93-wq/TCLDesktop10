@@ -1,0 +1,35 @@
+name: NegocioFacil - Verificar unico backend de pagamentos
+on:
+  push:
+    branches: [negociofacil-android]
+    paths:
+      - '.github/workflows/negociofacil-canonical-payments-health.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Verificar o servico canonico sem tocar em transacoes
+        env:
+          MP_URL: https://tlqcpfmkneohjleiynqe.supabase.co/functions/v1/nf-payments
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sSf --max-time 20 "$MP_URL/health" > /tmp/nf.json
+          python3 - <<'PY'
+          import json
+          h=json.load(open('/tmp/nf.json'))
+          assert h.get('service')=='NegocioFacil Checkout Pro'
+          assert h.get('mode') in ('test','live')
+          assert h.get('checkout_enabled') is False, 'NÃO ATIVAR PAGAMENTO REAL ANTES DA HOMOLOGAÇÃO'
+          print('Backend de pagamentos: ONLINE')
+          print('Ambiente:',h['mode'])
+          print('Webhook assinado configurado:',h['webhook_ready'])
+          print('Checkout ainda bloqueado:',not h['checkout_enabled'])
+          PY
+          status="$(curl -sS --max-time 20 -o /tmp/nf-guest.json -w '%{http_code}' -X POST -H 'content-type: application/json' --data '{"business_id":"00000000-0000-4000-8000-000000000000","amount_cents":100,"description":"Teste"}' "$MP_URL/sales")"
+          test "$status" = '401' || { echo "ERRO: operacao anonima HTTP $status"; exit 1; }
+          echo 'Anonimo bloqueado: SIM'
