@@ -36,7 +36,7 @@ def apply(root):
                 if ("https".equals(uri.getScheme())
                     && "tlqcpfmkneohjleiynqe.supabase.co".equals(uri.getHost())
                     && !request.isForMainFrame()
-                    && ("GET".equals(request.getMethod())||"POST".equals(request.getMethod()))
+                    && ("GET".equals(request.getMethod())||"POST".equals(request.getMethod())||"OPTIONS".equals(request.getMethod()))
                     && (p.startsWith("/auth/v1/")
                         || p.equals("/rest/v1/nf_businesses")
                         || p.startsWith("/functions/v1/nf-mercadopago/"))) {
