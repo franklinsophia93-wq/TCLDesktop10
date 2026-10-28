@@ -154,11 +154,11 @@ async function webhook(req:Request){
  const merchants=await db("nf_mp_connections","GET",q({select:"business_id,mp_user_id,access_token_enc,refresh_token_enc,expires_at",mp_user_id:"eq."+body.user_id,limit:"20"}));
  if(!merchants.length)return resp({ignored:true,reason:"no_connected_seller"});
  // Query payment only with a credential belonging to the notified seller.
- let payment:any=null,activeConn:any=null;
+ let payment:any=null;
  for(const conn of merchants){
   const token=await refreshedToken(conn);
   const r=await fetch("https://api.mercadopago.com/v1/payments/"+id,{headers:{Authorization:"Bearer "+token}});
-  if(r.ok){payment=await r.json();activeConn=conn;break}
+  if(r.ok){payment=await r.json();break}
  }
  if(!payment)return fail("Não foi possível consultar o pagamento no Mercado Pago",502);
  if(String(payment.id)!==id||String(payment.collector_id)!==String(body.user_id))return fail("Pagamento de outro recebedor",403);
@@ -167,7 +167,8 @@ async function webhook(req:Request){
  const sales=await db("nf_sales","GET",q({select:"id,business_id,amount_cents,currency_id,external_reference",external_reference:"eq."+ref,limit:"1"}));
  const sale=sales[0];
  if(!sale)return resp({ignored:true,reason:"sale_not_found"});
- if(sale.business_id!==activeConn.business_id)return fail("Empresa divergente",409);
+ const authorizedMerchant=merchants.find((c:any)=>c.business_id===sale.business_id);
+ if(!authorizedMerchant||String(authorizedMerchant.mp_user_id)!==String(body.user_id))return fail("Empresa divergente",409);
  const amount=cents(payment.transaction_amount);
  if(amount!==sale.amount_cents||payment.currency_id!=="BRL"||payment.external_reference!==sale.external_reference)
   return fail("Valor, moeda ou referência não conferem",409);
