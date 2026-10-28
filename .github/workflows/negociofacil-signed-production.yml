@@ -1,4 +1,4 @@
-name: NegocioFacil 0.6 - primeiro APK com assinatura permanente
+name: NegocioFacil 0.6 - assinatura permanente e login nativo seguro
 on:
   workflow_dispatch:
 
@@ -23,8 +23,10 @@ jobs:
           python3 negociofacil/upgrade_v03.py build-src
           python3 negociofacil/upgrade_v04_admob.py build-src
           python3 negociofacil/upgrade_v05_sharing.py build-src
-          python3 negociofacil/upgrade_v06_cloud.py build-src
-          node --check build-src/web/nf-cloud.js
+          python3 negociofacil/upgrade_v06_login.py build-src negociofacil
+          node --check build-src/web/app.js
+          grep -Fq 'AndroidKeyStore' build-src/android/app/src/main/java/br/com/negociofacil/app/CloudAccount.java
+          grep -Fq 'cloudConnectMP' build-src/web/app.js
           node --check build-src/web/app.js
           grep -q "versionCode 6" build-src/android/app/build.gradle
           grep -q "applicationId 'br.com.negociofacil.app'" build-src/android/app/build.gradle
