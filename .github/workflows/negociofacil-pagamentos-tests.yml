@@ -1,0 +1,32 @@
+name: NegocioFacil - validar pagamentos sem comissao
+on:
+  push:
+    branches: [negociofacil-android]
+    paths:
+      - 'negociofacil/pagamentos/**'
+      - '.github/workflows/negociofacil-pagamentos-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Obter codigo
+        uses: actions/checkout@v4
+      - name: Instalar Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Executar testes seguros e offline
+        run: node --test negociofacil/pagamentos/payment_core.test.mjs
+      - name: Checar regra de comissao zero
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq "test('nenhuma taxa do NegócioFácil" negociofacil/pagamentos/payment_core.test.mjs
+          grep -Fq 'https://api.mercadopago.com/checkout/preferences' negociofacil/pagamentos/payment_core.mjs
+          grep -Fq 'reconcilePayment' negociofacil/pagamentos/payment_core.mjs
