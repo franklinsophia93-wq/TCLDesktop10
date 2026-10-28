@@ -43,6 +43,19 @@ def patch(root, assets):
     native=once(native,'        super.onCreate(state);','        super.onCreate(state);\n        cloudAccount = new CloudAccount(this);','Inicializacao segura')
     native=once(native,'    private final class LocalActions {',
 """    private final class LocalActions {
+        @JavascriptInterface public void openMercadoPagoOAuth(String value) {
+            if (value == null || value.length() > 4096) return;
+            try {
+                android.net.Uri u = android.net.Uri.parse(value);
+                if (!"https".equals(u.getScheme())
+                    || !"auth.mercadopago.com".equals(u.getHost())
+                    || !"/authorization".equals(u.getPath())
+                    || u.getUserInfo() != null) return;
+                runOnUiThread(() -> openExternalUrl(value));
+            } catch (Exception e) {
+                show("Falha ao abrir autorização do Mercado Pago.");
+            }
+        }
         @JavascriptInterface public String cloudState(){return cloudAccount.state();}
         @JavascriptInterface public String cloudSignup(String email,String password){return cloudAccount.signup(email,password);}
         @JavascriptInterface public String cloudSignin(String email,String password){return cloudAccount.signin(email,password);}
