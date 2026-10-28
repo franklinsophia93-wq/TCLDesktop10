@@ -59,7 +59,7 @@
       if(!r.ok)return notice(r.message||'Não foi possível conectar.');
       const url=String(r.authorization_url||'');
       if(!url.startsWith('https://auth.mercadopago.com/authorization?'))return notice('Endereço de autorização inválido.');
-      bridge().openExternal(url);
+      bridge().openMercadoPagoOAuth(url);
       notice('Autorize sua conta no navegador. Depois retorne e verifique a conexão.');return;
     }
     if(action==='cloud-status'){
