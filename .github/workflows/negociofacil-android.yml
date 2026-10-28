@@ -1,4 +1,4 @@
-name: NegocioFacil Android 0.5 - menu de compartilhamento Android
+name: NegocioFacil Android 0.6 - Conta Online Supabase OAuth
 on:
   push:
     branches: [negociofacil-android]
@@ -7,6 +7,8 @@ on:
       - 'negociofacil/upgrade_v03.py'
       - 'negociofacil/upgrade_v04_admob.py'
       - 'negociofacil/upgrade_v05_sharing.py'
+      - 'negociofacil/upgrade_v06_cloud.py'
+      - 'negociofacil/web/nf-cloud.js'
       - 'negociofacil/pagamentos/**'
       - '.github/workflows/negociofacil-android.yml'
   workflow_dispatch:
@@ -30,10 +32,14 @@ jobs:
           python3 negociofacil/upgrade_v03.py build-src
           python3 negociofacil/upgrade_v04_admob.py build-src
           python3 negociofacil/upgrade_v05_sharing.py build-src
+          python3 negociofacil/upgrade_v06_cloud.py build-src
+          node --check build-src/web/nf-cloud.js
+          grep -Fq "https://tlqcpfmkneohjleiynqe.supabase.co" build-src/web/index.html
+          grep -Fq "openMercadoPagoOAuth" build-src/android/app/src/main/java/br/com/negociofacil/app/MainActivity.java
           grep -Fq 'Intent.createChooser(share' build-src/android/app/src/main/java/br/com/negociofacil/app/MainActivity.java
           grep -Fq "bridge().shareText(x.title,msg)" build-src/web/app.js
           python3 -m py_compile negociofacil/upgrade_v04_admob.py
-          grep -q "versionCode 5" build-src/android/app/build.gradle
+          grep -q "versionCode 6" build-src/android/app/build.gradle
           node --check build-src/web/app.js
       - name: Verificar reconciliacao e webhooks Pix/cartao (mock, sem transacoes reais)
         run: node --test negociofacil/pagamentos/payment_core.test.mjs
@@ -64,14 +70,14 @@ jobs:
           test -s "$APK"
           unzip -tqq "$APK"
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -Fq "package: name='br.com.negociofacil.app'"
-          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -Fq "versionCode='5'"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -Fq "versionCode='6'"
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$APK"
-          cp "$APK" NegocioFacil-0.5-teste.apk
-          sha256sum NegocioFacil-0.5-teste.apk
-          echo 'ATENCAO: ASSINATURA DE DEBUG TEMPORARIA DO CI. A 0.5 PODE EXIGIR REINSTALACAO. FACA BACKUP.'
+          cp "$APK" NegocioFacil-0.6-VALIDACAO-nao-instalar.apk
+          sha256sum NegocioFacil-0.6-VALIDACAO-nao-instalar.apk
+          echo 'ATENCAO: ASSINATURA DE DEBUG TEMPORARIA DO CI. NÃO INSTALE sem assinatura permanente. Validação técnica apenas.'
       - name: Enviar APK de teste
         uses: actions/upload-artifact@v4
         with:
-          name: NegocioFacil-0.5-APK
-          path: NegocioFacil-0.5-teste.apk
+          name: NegocioFacil-0.6-BUILD-SEM-ASSINATURA-PERMANENTE
+          path: NegocioFacil-0.6-VALIDACAO-nao-instalar.apk
           if-no-files-found: error
