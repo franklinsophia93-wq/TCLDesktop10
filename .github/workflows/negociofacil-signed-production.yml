@@ -1,4 +1,4 @@
-name: NegocioFacil - APK com assinatura permanente
+name: NegocioFacil 0.5 - primeiro APK com assinatura permanente
 on:
   workflow_dispatch:
 
@@ -12,7 +12,7 @@ jobs:
     steps:
       - name: Checkout do codigo de NegocioFacil
         uses: actions/checkout@v4
-      - name: Descompactar a fonte e aplicar revisao 0.3
+      - name: Descompactar e aplicar revisoes ate 0.5
         shell: bash
         run: |
           set -euo pipefail
@@ -21,8 +21,10 @@ jobs:
           mkdir build-src
           unzip -q negociofacil/NegocioFacil-src.zip -d build-src
           python3 negociofacil/upgrade_v03.py build-src
+          python3 negociofacil/upgrade_v04_admob.py build-src
+          python3 negociofacil/upgrade_v05_sharing.py build-src
           node --check build-src/web/app.js
-          grep -q "versionCode 3" build-src/android/app/build.gradle
+          grep -q "versionCode 5" build-src/android/app/build.gradle
           grep -q "applicationId 'br.com.negociofacil.app'" build-src/android/app/build.gradle
       - name: Java 17
         uses: actions/setup-java@v4
@@ -81,17 +83,17 @@ jobs:
           test -s "$APK"
           unzip -tqq "$APK"
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -Fq "package: name='br.com.negociofacil.app'"
-          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -Fq "versionCode='3'"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -Fq "versionCode='5'"
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$APK" | tee assinatura.txt
           grep -q 'Signer #1 certificate SHA-256 digest:' assinatura.txt
-          cp "$APK" NegocioFacil-0.3-assinado.apk
-          sha256sum NegocioFacil-0.3-assinado.apk
+          cp "$APK" NegocioFacil-0.5-assinado.apk
+          sha256sum NegocioFacil-0.5-assinado.apk
           echo "::notice::Salve a chave original com seguranca. Alterar chave pode impedir atualizacoes do app."
       - name: Publicar artifact apenas apos assinatura verificada
         uses: actions/upload-artifact@v4
         with:
-          name: NegocioFacil-0.3-ASSINADO-com-chave-permanente
+          name: NegocioFacil-0.5-ASSINADO-com-chave-permanente
           path: |
-            NegocioFacil-0.3-assinado.apk
+            NegocioFacil-0.5-assinado.apk
             assinatura.txt
           if-no-files-found: error
