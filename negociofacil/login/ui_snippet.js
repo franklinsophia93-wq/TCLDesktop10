@@ -48,7 +48,7 @@
       const amount='R$ '+(Number(x.amount_cents)/100).toFixed(2).replace('.',',');
       const status=x.status==='paid'?'Pago':x.status==='refunded'?'Estornado':
          x.status==='charged_back'?'Contestado':'Aguardando';
-      const canPay=x.status==='pending';
+      const canPay=x.status==='pending'||x.status==='checkout_created';
       return '<div class="list-row"><div class="list-main"><b>'+h(x.description)+'</b><small>'+amount+' • '+status+'</small></div>'+
          (canPay?'<button class="btn small" data-action="cloud-charge" data-id="'+h(x.id)+'">Cobrar</button>':'')+
          '</div>';
