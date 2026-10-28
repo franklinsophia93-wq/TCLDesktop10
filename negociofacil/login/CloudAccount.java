@@ -194,7 +194,10 @@ public final class CloudAccount {
         }
     }
     private boolean isEmail(String email) {
-        return email!=null&&email.length()<=254&&email.matches("^[^@\\\\s]+@[^@\\\\s]+\\\\.[^@\\\\s]+$");
+        if(email==null||email.length()>254||email.length()<6)return false;
+        String e=email.trim();
+        int at=e.indexOf('@'),dot=e.lastIndexOf('.');
+        return at>0&&dot>at+1&&dot<e.length()-1&&!e.contains(" ")&&!e.contains("\n");
     }
     private boolean validPassword(String pass) {return pass!=null&&pass.length()>=8&&pass.length()<=128;}
     private JSONArray businesses(String token) throws Exception{
