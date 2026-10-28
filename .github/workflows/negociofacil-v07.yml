@@ -1,0 +1,64 @@
+name: NegocioFacil 0.7 - validar Checkout Pro por vendedor
+on:
+  push:
+    branches: [negociofacil-android]
+    paths:
+      - 'negociofacil/upgrade_v07_payments.py'
+      - 'negociofacil/login/**'
+      - 'negociofacil/backend/checkout.ts'
+      - '.github/workflows/negociofacil-v07.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Preparar app unico e validar JavaScript
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build-src
+          unzip -q negociofacil/NegocioFacil-src.zip -d build-src
+          python3 negociofacil/upgrade_v03.py build-src
+          python3 negociofacil/upgrade_v04_admob.py build-src
+          python3 negociofacil/upgrade_v05_sharing.py build-src
+          python3 negociofacil/upgrade_v06_login.py build-src negociofacil
+          python3 negociofacil/upgrade_v07_payments.py build-src
+          node --check build-src/web/app.js
+          python3 -m py_compile negociofacil/upgrade_v07_payments.py
+          grep -Fq 'cloudCheckout' build-src/android/app/src/main/java/br/com/negociofacil/app/MainActivity.java
+          grep -q 'versionCode 7' build-src/android/app/build.gradle
+      - name: Testes financeiros sem movimentar fundos
+        run: node --test negociofacil/pagamentos/payment_core.test.mjs
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Android SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | head -n1)"
+          test -n "$SDKMANAGER"
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+          "$SDKMANAGER" --install 'platforms;android-35' 'build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Compilar sem publicar para instalacao
+        run: gradle -p build-src/android --no-daemon --max-workers=2 -Dorg.gradle.jvmargs="-Xmx3g -XX:MaxMetaspaceSize=512m" :app:assembleDebug
+      - name: Verificar APK interno
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=build-src/android/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$APK"
+          unzip -tqq "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -Fq "versionCode='7'"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -Fq "package: name='br.com.negociofacil.app'"
+          echo 'VALIDACAO APROVADA; NAO DISTRIBUIR APK ASSINADO COM DEBUG CI.'
