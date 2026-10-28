@@ -7,6 +7,7 @@ on:
       - 'negociofacil/upgrade_v03.py'
       - 'negociofacil/upgrade_v04_admob.py'
       - 'negociofacil/upgrade_v05_sharing.py'
+      - 'negociofacil/pagamentos/**'
       - '.github/workflows/negociofacil-android.yml'
   workflow_dispatch:
 
@@ -34,6 +35,8 @@ jobs:
           python3 -m py_compile negociofacil/upgrade_v04_admob.py
           grep -q "versionCode 5" build-src/android/app/build.gradle
           node --check build-src/web/app.js
+      - name: Verificar reconciliacao e webhooks Pix/cartao (mock, sem transacoes reais)
+        run: node --test negociofacil/pagamentos/payment_core.test.mjs
       - name: Configurar Java 17
         uses: actions/setup-java@v4
         with:
