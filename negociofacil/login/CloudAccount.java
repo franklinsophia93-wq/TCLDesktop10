@@ -190,7 +190,7 @@ public final class CloudAccount {
                     try{read("/auth/v1/logout","POST",null,s.optString("access"));}catch(Exception ignored){}
                 }
                 clear();return ok("Voce saiu da conta online.").toString();
-            }catch(Exception e){clear();return ok("Sessao encerrada no aparelho.").toString();}
+            }catch(Exception e){clear();return "{\"ok\":true,\"message\":\"Sessao encerrada no aparelho.\"}";}
         }
     }
     private boolean isEmail(String email) {
@@ -213,7 +213,7 @@ public final class CloudAccount {
                 return new JSONObject().put("authenticated",true)
                     .put("email",s.optString("email",""))
                     .put("businesses",rows).toString();
-            }catch(Exception e){return new JSONObject().put("authenticated",false).toString();}
+            }catch(Exception e){return "{\"authenticated\":false}";}
         }
     }
     @JavascriptInterface public String addBusiness(String name) {
