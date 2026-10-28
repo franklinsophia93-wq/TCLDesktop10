@@ -25,6 +25,8 @@ jobs:
           python3 negociofacil/upgrade_v05_sharing.py build-src
           python3 negociofacil/upgrade_v06_login.py build-src negociofacil
           python3 negociofacil/upgrade_v07_payments.py build-src
+          grep -Fq 'nf-payments/sales' build-src/android/app/src/main/java/br/com/negociofacil/app/CloudAccount.java
+          python3 negociofacil/upgrade_v07_payments.py build-src
           node --check build-src/web/app.js
           grep -Fq 'AndroidKeyStore' build-src/android/app/src/main/java/br/com/negociofacil/app/CloudAccount.java
           grep -Fq 'cloudConnectMP' build-src/web/app.js
