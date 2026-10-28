@@ -2,6 +2,28 @@
 
 **Estado em 28/10/2026:** backend de pagamentos `nf-payments` implantado, bancos `nf_sales` e `nf_provider_payments` criados, API de login e recebimentos em homologação. **Cobranças reais NÃO liberadas até cumprir o checklist abaixo.** Não confundir API no ar com autorização do Mercado Pago ou dinheiro movimentado.
 
+## Auditoria atual (28/10/2026)
+
+- Servidor principal `nf-payments`: online. `nf-checkout` é legado e foi desativado.
+- `NF_CHECKOUT_MODE=test`, `NF_CHECKOUT_ENABLED=false`.
+- `MP_WEBHOOK_SECRET`: **ainda não configurado**; o health retorna `webhook_ready=false`.
+- Banco Supabase: **0 empresas, 0 vendedores conectados, 0 vendas, 0 pagamentos conciliados** no momento da verificação.
+- Teste GitHub: https://github.com/franklinsophia93-wq/TCLDesktop10/actions/runs/40663616725, aprovado.
+- API bloqueia criação/consulta de venda sem login; webhook sem assinatura não marca pagamento.
+- Função `nf_record_verified_payment`: apenas `service_role` pode executar; `anon` e `authenticated` não têm permissão. Tokens de vendedores não são expostos no APK.
+- Os fluxos ainda precisam de **teste ponta a ponta** com contas Mercado Pago de homologação, notificações reais, estornos e autorização OAuth.
+- **Não ativar** `NF_CHECKOUT_ENABLED=true` nem mudar `NF_CHECKOUT_MODE=live` antes desses testes.
+
+### Configuração pendente no painel Mercado Pago
+
+Em Mercado Pago Developers → aplicação NegócioFácil → **Webhooks**, selecione o evento de **Pagamentos**, configure a URL pública abaixo e copie a assinatura secreta gerada para o **Supabase → Edge Functions → Secrets**, na variável `MP_WEBHOOK_SECRET`.
+
+```text
+https://tlqcpfmkneohjleiynqe.supabase.co/functions/v1/nf-payments/webhook
+```
+
+**Atenção:** Webhooks NÃO são a mesma URL de redirecionamento OAuth. Esta última termina em `/nf-mercadopago/oauth/callback` e já foi salva. Não divulgue a assinatura secreta, Client Secret, chaves ou Access Tokens no chat.
+
 ## URLs
 - Health do gateway: https://tlqcpfmkneohjleiynqe.supabase.co/functions/v1/nf-payments/health
 - Webhook Pagamentos: https://tlqcpfmkneohjleiynqe.supabase.co/functions/v1/nf-payments/webhook
