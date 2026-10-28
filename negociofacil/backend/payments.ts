@@ -88,6 +88,12 @@ async function ownedSale(id:string,user:string){
  if(!await businessOwner(sale.business_id,user))return null;
  return sale;
 }
+async function listSales(req:Request,user:string){
+ const businessId=str(new URL(req.url).searchParams.get("business_id"));
+ if(!uuid.test(businessId)||!await businessOwner(businessId,user))return fail("Negócio não autorizado",403);
+ const rows=await db("nf_sales","GET",q({select:"id,description,amount_cents,status,created_at",business_id:"eq."+businessId,order:"created_at.desc",limit:"30"}));
+ return resp({sales:rows});
+}
 async function checkout(id:string,user:string){
  if(!CHECKOUT_ENABLED)return fail("Checkout não liberado: homologação de segurança pendente",503);
  if(!WEBHOOK_SECRET)return fail("Webhook ainda não configurado",503);
@@ -192,6 +198,7 @@ async function main(req:Request){
  const user=await caller(req);
  if(!user)return fail("Login obrigatório",401);
  if(path.endsWith("/sales")&&req.method==="POST")return await createSale(req,user);
+ if(path.endsWith("/sales")&&req.method==="GET")return await listSales(req,user);
  const match=path.match(/\/sales\/([0-9a-f-]{36})(\/checkout)?$/i);
  if(match&&uuid.test(match[1])){
   if(match[2]&&req.method==="POST")return await checkout(match[1],user);
