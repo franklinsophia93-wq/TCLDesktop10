@@ -143,11 +143,14 @@ async function webhook(req:Request){
  const u=new URL(req.url);
  const business=u.searchParams.get('business_id')||'',id=u.searchParams.get('sale_id')||'';
  const paymentId=u.searchParams.get('data.id')||u.searchParams.get('id')||'';
- if(!UUID.test(business)||!UUID.test(id)||!PAYMENT.test(paymentId))return deny('Evento invalido',400);
+ if(!PAYMENT.test(paymentId))return deny('ID da notificacao invalido',400);
  if(!await validSignature(req,paymentId))return deny('Assinatura do Webhook invalida',401);
  const event=await body(req);
  if(event.type!=='payment'||String(event.data?.id||'')!==paymentId)return deny('Evento nao suportado',400);
  if(Boolean(event.live_mode)!==(MODE==='production'))return deny('Ambiente incorreto',409);
+ // O teste do painel pode enviar uma notificacao ASSINADA sem contexto da
+ // venda. Aceitamos o teste, mas NUNCA criamos recibo, venda ou pagamento.
+ if(!UUID.test(business)||!UUID.test(id))return json({received:true,reconciled:false,reason:'sem_venda_vinculada'});
  const s=await sale(business,id);if(!s)return deny('Venda nao encontrada',404);
  const cred=await seller(business);
  const res=await fetch('https://api.mercadopago.com/v1/payments/'+paymentId,{headers:{authorization:'Bearer '+cred.token}});
