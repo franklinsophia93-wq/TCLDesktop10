@@ -1,4 +1,4 @@
-name: NegocioFacil Android 0.6 - Conta Online Supabase OAuth
+name: NegocioFacil Android 0.6 - Conta Online nativa com KeyStore
 on:
   push:
     branches: [negociofacil-android]
@@ -7,8 +7,8 @@ on:
       - 'negociofacil/upgrade_v03.py'
       - 'negociofacil/upgrade_v04_admob.py'
       - 'negociofacil/upgrade_v05_sharing.py'
-      - 'negociofacil/upgrade_v06_cloud.py'
-      - 'negociofacil/web/nf-cloud.js'
+      - 'negociofacil/upgrade_v06_login.py'
+      - 'negociofacil/login/**'
       - 'negociofacil/pagamentos/**'
       - '.github/workflows/negociofacil-android.yml'
   workflow_dispatch:
@@ -32,10 +32,10 @@ jobs:
           python3 negociofacil/upgrade_v03.py build-src
           python3 negociofacil/upgrade_v04_admob.py build-src
           python3 negociofacil/upgrade_v05_sharing.py build-src
-          python3 negociofacil/upgrade_v06_cloud.py build-src
-          node --check build-src/web/nf-cloud.js
-          grep -Fq "https://tlqcpfmkneohjleiynqe.supabase.co" build-src/web/index.html
-          grep -Fq "openMercadoPagoOAuth" build-src/android/app/src/main/java/br/com/negociofacil/app/MainActivity.java
+          python3 negociofacil/upgrade_v06_login.py build-src negociofacil
+          grep -Fq 'AndroidKeyStore' build-src/android/app/src/main/java/br/com/negociofacil/app/CloudAccount.java
+          grep -Fq 'openMercadoPagoOAuth' build-src/android/app/src/main/java/br/com/negociofacil/app/MainActivity.java
+          grep -Fq 'cloudCard()' build-src/web/app.js
           grep -Fq 'Intent.createChooser(share' build-src/android/app/src/main/java/br/com/negociofacil/app/MainActivity.java
           grep -Fq "bridge().shareText(x.title,msg)" build-src/web/app.js
           python3 -m py_compile negociofacil/upgrade_v04_admob.py
