@@ -1,0 +1,44 @@
+name: Publicar NegocioFacil 0.4 AdMob identificado (anuncios de teste)
+on:
+  push:
+    branches: [negociofacil-android]
+    paths:
+      - '.github/workflows/publish-negociofacil-v04.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - name: Baixar APK compilado e verificado
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 40606063034
+          repository: franklinsophia93-wq/TCLDesktop10
+          github-token: ${{ github.token }}
+          name: NegocioFacil-0.4-APK
+          path: release
+      - name: Inspecionar pacote Android e assinatura
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s release/NegocioFacil-0.4-teste.apk
+          unzip -tqq release/NegocioFacil-0.4-teste.apk
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging release/NegocioFacil-0.4-teste.apk | grep -Fq "package: name='br.com.negociofacil.app'"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging release/NegocioFacil-0.4-teste.apk | grep -Fq "versionCode='4'"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose release/NegocioFacil-0.4-teste.apk
+          sha256sum release/NegocioFacil-0.4-teste.apk
+      - name: Publicar GitHub Release de homologacao
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create negociofacil-v0.4-admob-teste release/NegocioFacil-0.4-teste.apk \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "NegocioFacil 0.4 - sua conta AdMob, banners de teste" \
+            --notes "HOMOLOGACAO: APK unico Free/Pro/Empresarial. App ID AdMob da conta do proprietario configurado, ID banner real armazenado mas DESATIVADO. O APK exibe apenas anuncios DEMONSTRATIVOS do Google no gratuito, sem faturamento. Nao clicar em anuncios reais. Recibos PDF nao fiscais. Notas fiscais oficiais apenas no portal governamental. Pagamentos e assinaturas reais ainda nao implementados. ASSINATURA DEBUG EPHEMERAL no GitHub CI: possivel necessidade de desinstalar a versao 0.3. FACA BACKUP JSON ANTES. Apos reinstalacao, restaure os dados. Teste fisico no TCL ainda nao realizado." \
+            --prerelease --latest=false
