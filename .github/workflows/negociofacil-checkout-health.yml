@@ -1,0 +1,39 @@
+name: NegocioFacil - checar servidor Checkout Pro
+on:
+  push:
+    branches: [negociofacil-android]
+    paths:
+      - '.github/workflows/negociofacil-checkout-health.yml'
+      - 'negociofacil/backend/checkout.ts'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Testar servidor publico sem vazamento de segredos
+        env:
+          BASE: https://tlqcpfmkneohjleiynqe.supabase.co/functions/v1/nf-checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail -sS --max-time 20 "$BASE/health" -o /tmp/health.json
+          python3 - <<'PY'
+          import json
+          h=json.load(open('/tmp/health.json'))
+          assert h['service']=='NegocioFacil Checkout Pro'
+          assert type(h['payments_enabled'])==bool
+          assert type(h['webhook_signature_configured'])==bool
+          print('Servidor Checkout Pro online: SIM')
+          print('Webhook assinado configurado:',h['webhook_signature_configured'])
+          print('Cobranças habilitadas:',h['payments_enabled'])
+          assert h['payments_enabled'] is False, 'PRODUCAO NAO AUTORIZADA: disable pagamentos durante homologacao'
+          PY
+          code="$(curl -sS --max-time 20 -o /tmp/guest.json -w '%{http_code}' -X POST -H 'content-type: application/json' --data '{"business_id":"00000000-0000-4000-8000-000000000000","description":"Teste","amount_cents":100}' "$BASE/sales")"
+          test "$code" = 401 || { echo "Falha: venda anonima HTTP $code"; exit 1; }
+          echo 'Venda anonima bloqueada HTTP 401: SIM'
+          code="$(curl -sS --max-time 20 -o /tmp/unauth-webhook.json -w '%{http_code}' -X POST -H 'content-type: application/json' --data '{"type":"payment","data":{"id":"123"}}' "$BASE/webhook")"
+          test "$code" = 503 || { echo "Falha: Webhook nao configurado HTTP $code"; exit 1; }
+          echo 'Webhook antes da homologacao bloqueado: SIM'
