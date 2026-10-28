@@ -1,0 +1,37 @@
+name: NegocioFacil - Testar servidor de contas
+on:
+  push:
+    branches: [negociofacil-android]
+    paths:
+      - '.github/workflows/negociofacil-account-check.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Servidor online e sem pagamentos
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --retry 3 --max-time 20 -fsS https://tlqcpfmkneohjleiynqe.supabase.co/functions/v1/nf-account/health > /tmp/health.json
+          python3 - <<'PY'
+          import json
+          data=json.load(open('/tmp/health.json'))
+          assert data["service"] == "NegocioFacil accounts", data
+          assert data["status"] == "online", data
+          assert data["payments_enabled"] is False, data
+          print("Servidor de contas: ONLINE / sem cobrança real")
+          PY
+      - name: Rejeitar acesso a negócios sem login
+        shell: bash
+        run: |
+          set -euo pipefail
+          base=https://tlqcpfmkneohjleiynqe.supabase.co/functions/v1/nf-account/businesses
+          status=$(curl --max-time 20 -sS -o /tmp/noauth.json -w "%{http_code}" "$base")
+          test "$status" = 401 || { echo "GET anonimo: HTTP $status (esperado 401)"; exit 1; }
+          status=$(curl --max-time 20 -sS -o /tmp/noauthpost.json -w "%{http_code}" -X POST -H 'content-type: application/json' -d '{"name":"Teste indevido","owner_user_id":"00000000-0000-4000-8000-000000000000"}' "$base")
+          test "$status" = 401 || { echo "POST anonimo: HTTP $status (esperado 401)"; exit 1; }
+          echo "GET e POST anonimos bloqueados com HTTP 401"
