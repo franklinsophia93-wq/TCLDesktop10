@@ -53,3 +53,23 @@ e **mesmo certificado de assinatura**, salvo rotação de chaves suportada.
 - Mercado Pago: criar integração OAuth, registrar cada recebedor, disponibilizar servidor HTTPS, armazenar tokens em cofre, validar `x-signature` e conciliar pagamentos pelo provedor.
 - Fiscal: credenciamento e testes de homologação de NFS-e e/ou NF-e; comprovantes comerciais **não fiscais** não valem como notas.
 - Garantir backup e migração de dados. A primeira instalação assinada com a chave permanente provavelmente requer desinstalar o APK de teste com backup prévio; versões seguintes devem manter certificado e versão crescente.
+
+## Ajuste confirmado do build release (28/10/2026)
+
+O workflow `.github/workflows/negociofacil-signed-production.yml` foi corrigido para:
+- compilar `app-release-unsigned.apk` sem assinatura;
+- alinhar o APK com `zipalign`;
+- assinar com `apksigner`, usando SOMENTE a chave guardada em GitHub Actions Secrets;
+- verificar a assinatura, o pacote `br.com.negociofacil.app` e `versionCode=5`;
+- guardar o SHA-256 do certificado em `certificado-sha256.txt` junto ao APK;
+- comparar o certificado com a variável opcional `NF_SIGNING_CERT_SHA256` do repositório, que deve ser fixada após a primeira assinatura. Compilações seguintes com certificado diferente serão bloqueadas.
+
+**A chave JKS/PKCS12 ainda NÃO foi criada nem cadastrada neste repositório.** O workflow está preparado, não há APK permanente produzido ainda.
+
+Para o primeiro teste, o proprietário cria uma chave e guarda uma cópia de segurança privada, configura quatro Secrets: `NF_KEYSTORE_B64`, `NF_KEYSTORE_PASSWORD`, `NF_KEY_ALIAS`, `NF_KEY_PASSWORD`. Após rodar o workflow pela primeira vez, deve abrir o arquivo `certificado-sha256.txt` do artifact e configurar `NF_SIGNING_CERT_SHA256` em GitHub Settings → Secrets and variables → Actions → Variables. Isso previne que um futuro APK seja publicado por acidente com outra chave.
+
+**Não colocar a chave, senhas nem conteúdo Base64 em conversa, issue ou arquivo público do GitHub.** Senhas e keyfiles precisam ficar fora do repositório e ter backup separado. Se a chave for perdida e não houver mecanismo de migração compatível, atualizações sobre a instalação antiga podem deixar de funcionar.
+
+### Migração da versão debug atual
+
+Como as versões anteriores foram assinadas com chaves debug efêmeras do CI, o primeiro APK assinado com a chave definitiva provavelmente NÃO poderá ser atualizado por cima da instalação atual. A sequência é: **exportar backup JSON e verificar o arquivo → desinstalar somente se a atualização for rejeitada → instalar o primeiro release com assinatura permanente → restaurar dados → conferir cadastros**. A partir daí, manter a assinatura e incrementar `versionCode` em todas as versões. Não publicar novamente APKs debug para quem migrou para a versão definitiva.
