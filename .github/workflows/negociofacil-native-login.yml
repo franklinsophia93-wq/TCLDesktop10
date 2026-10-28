@@ -1,0 +1,68 @@
+name: NegocioFacil 0.6 - Login nativo protegido
+on:
+  push:
+    branches: [negociofacil-android]
+    paths:
+      - 'negociofacil/login/**'
+      - 'negociofacil/upgrade_v06_login.py'
+      - '.github/workflows/negociofacil-native-login.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Montar fontes no mesmo aplicativo
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build-src
+          unzip -q negociofacil/NegocioFacil-src.zip -d build-src
+          python3 negociofacil/upgrade_v03.py build-src
+          python3 negociofacil/upgrade_v04_admob.py build-src
+          python3 negociofacil/upgrade_v05_sharing.py build-src
+          python3 negociofacil/upgrade_v06_login.py build-src negociofacil
+          node --check build-src/web/app.js
+          grep -Fq 'AndroidKeyStore' build-src/android/app/src/main/java/br/com/negociofacil/app/CloudAccount.java
+          grep -q 'versionCode 6' build-src/android/app/build.gradle
+          grep -Fq 'MP_CLIENT_SECRET' negociofacil/backend/index.ts
+          python3 -m py_compile negociofacil/upgrade_v06_login.py
+      - name: Validar regras de pagamentos sem comissão
+        run: node --test negociofacil/pagamentos/payment_core.test.mjs
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: SDK Android
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          test -n "$SDKMANAGER"
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+          "$SDKMANAGER" --install 'platforms;android-35' 'build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Compilar APK para validação de código
+        run: gradle -p build-src/android --no-daemon --max-workers=2 -Dorg.gradle.jvmargs="-Xmx3g -XX:MaxMetaspaceSize=512m" :app:assembleDebug
+      - name: Verificação do pacote
+        run: |
+          set -euo pipefail
+          APK=build-src/android/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$APK"
+          unzip -tqq "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -Fq "package: name='br.com.negociofacil.app'"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -Fq "versionCode='6'"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify "$APK"
+          echo 'BUILD TECNICO; NÃO INSTALAR: ASSINATURA DE DEBUG TEMPORÁRIA'
+      - name: Salvar build interno para conferência, não para distribuição
+        uses: actions/upload-artifact@v4
+        with:
+          name: NegocioFacil-0.6-login-nativo-VALIDACAO-NAO-INSTALAR
+          path: build-src/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
