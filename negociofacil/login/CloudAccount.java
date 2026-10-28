@@ -249,6 +249,67 @@ public final class CloudAccount {
             }catch(Exception e){return error(e);}
         }
     }
+
+    /** Vendas ONLINE do negocio autenticado (separadas dos dados locais antigos). */
+    @JavascriptInterface public String cloudSales(String businessId) {
+        synchronized(sessionLock) {
+            try {
+                JSONObject current=session();
+                if(current==null)return fail("Entre na conta online.");
+                String token=current.getString("access");
+                if(!allowedBusiness(businessId,token))return fail("Negocio nao autorizado.");
+                JSONObject result=read("/functions/v1/nf-checkout/sales?business_id="+businessId,
+                   "GET",null,token);
+                return result.put("ok",true).toString();
+            }catch(Exception e){return error(e);}
+        }
+    }
+    @JavascriptInterface public String cloudNewSale(String businessId,String description,String amount) {
+        synchronized(sessionLock) {
+            try {
+                JSONObject current=session();
+                if(current==null)return fail("Entre na conta online.");
+                String token=current.getString("access");
+                if(!allowedBusiness(businessId,token))return fail("Negocio nao autorizado.");
+                if(description==null||description.trim().length()<2||description.trim().length()>120)
+                    return fail("Informe uma descricao entre 2 e 120 caracteres.");
+                if(amount==null||!amount.matches("^[0-9]{1,7}([.,][0-9]{1,2})?$"))
+                    return fail("Informe um valor valido em reais.");
+                java.math.BigDecimal value=new java.math.BigDecimal(amount.replace(',','.'));
+                long cents=value.movePointRight(2).longValueExact();
+                if(cents<100||cents>100000000)return fail("Valor permitido: R$ 1,00 a R$ 1.000.000,00.");
+                JSONObject req=new JSONObject().put("business_id",businessId)
+                    .put("description",description.trim()).put("amount_cents",cents);
+                JSONObject result=read("/functions/v1/nf-checkout/sales","POST",req,token);
+                return result.put("ok",true).toString();
+            }catch(Exception e){return error(e);}
+        }
+    }
+    @JavascriptInterface public String cloudCheckout(String businessId,String saleId) {
+        synchronized(sessionLock) {
+            try {
+                JSONObject current=session();
+                if(current==null)return fail("Entre na conta online.");
+                String token=current.getString("access");
+                if(!allowedBusiness(businessId,token))return fail("Negocio nao autorizado.");
+                if(saleId==null||!saleId.matches("^[a-f0-9A-F-]{36}$"))
+                    return fail("Venda invalida.");
+                JSONObject req=new JSONObject().put("business_id",businessId).put("sale_id",saleId);
+                JSONObject result=read("/functions/v1/nf-checkout/checkout","POST",req,token);
+                String url=result.optString("checkout_url","");
+                try {
+                    java.net.URI uri=new java.net.URI(url);
+                    String host=uri.getHost();
+                    if(!"https".equals(uri.getScheme())||host==null||
+                         !("mercadopago.com".equals(host)||host.endsWith(".mercadopago.com")||
+                         "mercadopago.com.br".equals(host)||host.endsWith(".mercadopago.com.br")))
+                        return fail("Endereco do checkout inesperado.");
+                }catch(Exception ex){return fail("Checkout sem link valido.");}
+                return result.put("ok",true).toString();
+            }catch(Exception e){return error(e);}
+        }
+    }
+
     @JavascriptInterface public String mpConnection(String businessId) {
         synchronized(sessionLock){
             try{
