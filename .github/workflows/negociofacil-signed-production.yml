@@ -44,51 +44,62 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Carregar chave de assinatura PRIVADA do GitHub Secrets
-        env:
-          NF_KEYSTORE_B64: ${{ secrets.NF_KEYSTORE_B64 }}
-          NF_KEYSTORE_PASSWORD: ${{ secrets.NF_KEYSTORE_PASSWORD }}
-          NF_KEY_ALIAS: ${{ secrets.NF_KEY_ALIAS }}
-          NF_KEY_PASSWORD: ${{ secrets.NF_KEY_PASSWORD }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          for name in NF_KEYSTORE_B64 NF_KEYSTORE_PASSWORD NF_KEY_ALIAS NF_KEY_PASSWORD; do
-            if test -z "${!name:-}"; then
-              echo "::error::Segredo GitHub ausente: $name. Configure todos os quatro antes de gerar o APK permanente."
-              exit 1
-            fi
-          done
-          umask 077
-          printf '%s' "$NF_KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/negociofacil-signing.jks"
-          test -s "$RUNNER_TEMP/negociofacil-signing.jks"
-          keytool -list -keystore "$RUNNER_TEMP/negociofacil-signing.jks" -alias "$NF_KEY_ALIAS" -storepass "$NF_KEYSTORE_PASSWORD" >/dev/null
-          echo "NF_KEYSTORE_FILE=$RUNNER_TEMP/negociofacil-signing.jks" >> "$GITHUB_ENV"
-          echo "::add-mask::$NF_KEYSTORE_PASSWORD"
-          echo "::add-mask::$NF_KEY_PASSWORD"
-          echo "NF_KEYSTORE_PASSWORD=$NF_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
-          echo "NF_KEY_ALIAS=$NF_KEY_ALIAS" >> "$GITHUB_ENV"
-          echo "NF_KEY_PASSWORD=$NF_KEY_PASSWORD" >> "$GITHUB_ENV"
-      - name: Compilar e assinar release com a chave permanente
+      - name: Compilar APK release SEM assinatura
         shell: bash
         run: |
           set -euo pipefail
           gradle -p build-src/android --no-daemon --max-workers=2 \
             -Dorg.gradle.jvmargs="-Xmx3g -XX:MaxMetaspaceSize=512m" :app:assembleRelease
-      - name: Conferir APK e identidade da assinatura
+          test -s build-src/android/app/build/outputs/apk/release/app-release-unsigned.apk
+      - name: Aplicar chave PERMANENTE do cofre GitHub Secrets
         shell: bash
+        env:
+          NF_KEYSTORE_B64: ${{ secrets.NF_KEYSTORE_B64 }}
+          NF_KEYSTORE_PASSWORD: ${{ secrets.NF_KEYSTORE_PASSWORD }}
+          NF_KEY_ALIAS: ${{ secrets.NF_KEY_ALIAS }}
+          NF_KEY_PASSWORD: ${{ secrets.NF_KEY_PASSWORD }}
+          NF_SIGNING_CERT_SHA256: ${{ vars.NF_SIGNING_CERT_SHA256 }}
         run: |
           set -euo pipefail
-          APK=build-src/android/app/build/outputs/apk/release/app-release.apk
-          test -s "$APK"
-          unzip -tqq "$APK"
-          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -Fq "package: name='br.com.negociofacil.app'"
-          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -Fq "versionCode='5'"
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$APK" | tee assinatura.txt
-          grep -q 'Signer #1 certificate SHA-256 digest:' assinatura.txt
-          cp "$APK" NegocioFacil-0.5-assinado.apk
+          for name in NF_KEYSTORE_B64 NF_KEYSTORE_PASSWORD NF_KEY_ALIAS NF_KEY_PASSWORD; do
+            if test -z "${!name:-}"; then
+              echo "::error::Chave permanente nao configurada: GitHub Actions Secret $name."
+              exit 1
+            fi
+          done
+          umask 077
+          KS="$RUNNER_TEMP/negociofacil-permanente.jks"
+          ALIGNED="$RUNNER_TEMP/negociofacil-aligned.apk"
+          trap 'rm -f "$KS" "$ALIGNED"' EXIT
+          printf '%s' "$NF_KEYSTORE_B64" | base64 --decode > "$KS"
+          test -s "$KS"
+          APK_UNSIGNED=build-src/android/app/build/outputs/apk/release/app-release-unsigned.apk
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -f -p 4 "$APK_UNSIGNED" "$ALIGNED"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" sign \
+            --ks "$KS" \
+            --ks-key-alias "$NF_KEY_ALIAS" \
+            --ks-pass env:NF_KEYSTORE_PASSWORD \
+            --key-pass env:NF_KEY_PASSWORD \
+            --out NegocioFacil-0.5-assinado.apk "$ALIGNED"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs NegocioFacil-0.5-assinado.apk > assinatura.txt
+          DIGEST="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' assinatura.txt | head -n1)"
+          if test -z "$DIGEST"; then
+            echo "::error::Assinatura nao foi validada"; exit 1
+          fi
+          printf '%s\n' "$DIGEST" > certificado-sha256.txt
+          if test -n "${NF_SIGNING_CERT_SHA256:-}"; then
+            if test "${DIGEST,,}" != "${NF_SIGNING_CERT_SHA256,,}"; then
+              echo "::error::Certificado DIFERENTE do permanente. Publicacao bloqueada."; exit 1
+            fi
+            echo "Certificado permanente corresponde ao fingerprint aprovado."
+          else
+            echo "::notice::Primeira assinatura: configure NF_SIGNING_CERT_SHA256 nas Variables do repositorio com o fingerprint publicado em certificado-sha256.txt."
+          fi
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging NegocioFacil-0.5-assinado.apk | grep -Fq "package: name='br.com.negociofacil.app'"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging NegocioFacil-0.5-assinado.apk | grep -Fq "versionCode='5'"
+          unzip -tqq NegocioFacil-0.5-assinado.apk
           sha256sum NegocioFacil-0.5-assinado.apk
-          echo "::notice::Salve a chave original com seguranca. Alterar chave pode impedir atualizacoes do app."
+          echo "APK release assinado, alinhado e validado; nunca distribuir assinatura DEBUG para quem instalou release."
       - name: Publicar artifact apenas apos assinatura verificada
         uses: actions/upload-artifact@v4
         with:
@@ -96,4 +107,5 @@ jobs:
           path: |
             NegocioFacil-0.5-assinado.apk
             assinatura.txt
+            certificado-sha256.txt
           if-no-files-found: error
