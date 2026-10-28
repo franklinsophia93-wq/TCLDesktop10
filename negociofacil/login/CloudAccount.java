@@ -258,7 +258,7 @@ public final class CloudAccount {
                 if(current==null)return fail("Entre na conta online.");
                 String token=current.getString("access");
                 if(!allowedBusiness(businessId,token))return fail("Negocio nao autorizado.");
-                JSONObject result=read("/functions/v1/nf-checkout/sales?business_id="+businessId,
+                JSONObject result=read("/functions/v1/nf-payments/sales?business_id="+businessId,
                    "GET",null,token);
                 return result.put("ok",true).toString();
             }catch(Exception e){return error(e);}
@@ -280,7 +280,7 @@ public final class CloudAccount {
                 if(cents<100||cents>100000000)return fail("Valor permitido: R$ 1,00 a R$ 1.000.000,00.");
                 JSONObject req=new JSONObject().put("business_id",businessId)
                     .put("description",description.trim()).put("amount_cents",cents);
-                JSONObject result=read("/functions/v1/nf-checkout/sales","POST",req,token);
+                JSONObject result=read("/functions/v1/nf-payments/sales","POST",req,token);
                 return result.put("ok",true).toString();
             }catch(Exception e){return error(e);}
         }
@@ -295,7 +295,7 @@ public final class CloudAccount {
                 if(saleId==null||!saleId.matches("^[a-f0-9A-F-]{36}$"))
                     return fail("Venda invalida.");
                 JSONObject req=new JSONObject().put("business_id",businessId).put("sale_id",saleId);
-                JSONObject result=read("/functions/v1/nf-checkout/checkout","POST",req,token);
+                JSONObject result=read("/functions/v1/nf-payments/sales/"+saleId+"/checkout","POST",req,token);
                 String url=result.optString("checkout_url","");
                 try {
                     java.net.URI uri=new java.net.URI(url);
