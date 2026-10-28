@@ -98,22 +98,22 @@ async function open(){
 }
 async function authenticate(form){
  if(busy)return;busy=true;const btn=form.querySelector('button[type=submit]');btn.disabled=true;
- const email=form.email.value.trim().toLowerCase(),password=form.password.value;
+ const email=form.elements.namedItem('email').value.trim().toLowerCase(),password=form.elements.namedItem('password').value;
  try{
   const registering=form.dataset.register==='1';
   const result=await api(registering?'/auth/v1/signup':'/auth/v1/token?grant_type=password',{method:'POST',body:{email,password}});
-  form.password.value='';
+  form.elements.namedItem('password').value='';
   if(result.access_token){saveSession(result);await open();return;}
   if(registering){showLogin(false);notice('Cadastro solicitado. Confirme o e-mail recebido antes de entrar.');}
   else notice('Login não confirmado. Verifique seu e-mail e sua senha.');
- }catch(e){form.password.value='';notice('Não foi possível entrar: '+e.message);}
+ }catch(e){form.elements.namedItem('password').value='';notice('Não foi possível entrar: '+e.message);}
  finally{busy=false;if(btn.isConnected)btn.disabled=false;}
 }
 async function createBusiness(form){
  if(busy)return;busy=true;const btn=form.querySelector('button[type=submit]');btn.disabled=true;
  try{
   if(!await ensureSession()||!user)throw Error('Faça login novamente.');
-  const name=form.name.value.trim();
+  const name=form.elements.namedItem('name').value.trim();
   if(name.length<1||name.length>120)throw Error('Nome inválido');
   const rows=await api('/rest/v1/nf_businesses',{method:'POST',auth:true,accept:'application/json',body:{owner_user_id:user.id,name}});
   // Supabase PostgREST uses minimal return unless Prefer header is provided.
