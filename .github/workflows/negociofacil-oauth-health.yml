@@ -37,3 +37,18 @@ jobs:
           code=$(curl -sS -o /tmp/nf-unauthorized.json -w '%{http_code}' --max-time 20 -X POST -H 'content-type: application/json' --data '{"business_id":"00000000-0000-4000-8000-000000000000"}' "$BASE_URL/oauth/start")
           test "$code" = 401 || { echo "ERRO: OAuth anônimo retornou HTTP $code"; exit 1; }
           echo 'OAuth anônimo bloqueado com HTTP 401: SIM'
+      - name: Conferir CORS do app Android sem permitir origens arbitrarias
+        env:
+          BASE_URL: https://tlqcpfmkneohjleiynqe.supabase.co/functions/v1/nf-mercadopago
+        shell: bash
+        run: |
+          set -euo pipefail
+          status=$(curl -sS --max-time 20 -o /tmp/nf-cors.txt -D /tmp/nf-cors-header.txt -w '%{http_code}' -X OPTIONS \
+            -H 'Origin: https://appassets.androidplatform.net' \
+            -H 'Access-Control-Request-Method: POST' \
+            -H 'Access-Control-Request-Headers: authorization,apikey,content-type' \
+            "$BASE_URL/oauth/start")
+          test "$status" = 204 || { echo "Preflight do Android falhou: $status"; exit 1; }
+          grep -iq '^access-control-allow-origin: https://appassets.androidplatform.net' /tmp/nf-cors-header.txt
+          test "$(curl -sS --max-time 20 -o /dev/null -w '%{http_code}' -X OPTIONS -H 'Origin: https://site-externo.example' "$BASE_URL/oauth/start")" = 403
+          echo 'CORS autorizado apenas para origem do NegocioFacil: SIM'
