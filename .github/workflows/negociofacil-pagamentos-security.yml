@@ -1,0 +1,63 @@
+name: NegocioFacil - Auditoria de pagamentos e webhook sem movimentar dinheiro
+on:
+  push:
+    branches: [negociofacil-android]
+    paths:
+      - '.github/workflows/negociofacil-pagamentos-security.yml'
+      - 'negociofacil/backend/payments.ts'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      URL: https://tlqcpfmkneohjleiynqe.supabase.co/functions/v1/nf-payments
+    steps:
+      - name: Consultar estado real sem credenciais
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --max-time 20 "$URL/health" > /tmp/nf-health.json
+          python3 - <<'PY'
+          import json
+          x=json.load(open('/tmp/nf-health.json'))
+          assert x.get('service')=='NegocioFacil Checkout Pro'
+          assert x.get('mode') in ['test','live']
+          assert isinstance(x.get('checkout_enabled'),bool)
+          assert isinstance(x.get('webhook_ready'),bool)
+          assert x.get('checkout_enabled') is False, 'PARE: cobrança liberada sem homologação final'
+          forbidden=('access_token','client_secret','webhook_secret','encryption_key','refresh_token')
+          assert not any(p in json.dumps(x).lower() for p in forbidden)
+          print('Servidor online: SIM')
+          print('Ambiente:',x['mode'])
+          print('Webhook autenticado configurado:',x['webhook_ready'])
+          print('Checkout real desativado:',not x['checkout_enabled'])
+          PY
+      - name: Nao permitir gerar vendas sem login
+        shell: bash
+        run: |
+          set -euo pipefail
+          code=$(curl -sS --max-time 20 -o /tmp/guest.json -w '%{http_code}' -X POST "$URL/sales" -H 'content-type: application/json' --data '{"business_id":"00000000-0000-4000-8000-000000000000","description":"Teste","amount_cents":100}')
+          test "$code" = 401 || { echo "Operação anônima HTTP $code (esperado 401)"; exit 1; }
+          echo 'Criar venda anônima: BLOQUEADO'
+      - name: Nao permitir webhook sem assinatura valida
+        shell: bash
+        run: |
+          set -euo pipefail
+          code=$(curl -sS --max-time 20 -o /tmp/webhook.json -w '%{http_code}' -X POST "$URL/webhook?data.id=123456" -H 'content-type: application/json' --data '{"type":"payment","user_id":123,"data":{"id":"123456"}}')
+          python3 - "$code" <<'PY'
+          import json,sys
+          status=int(sys.argv[1]);h=json.load(open('/tmp/nf-health.json'))
+          expected=401 if h['webhook_ready'] else 503
+          assert status==expected,f'Webhook sem assinatura retornou HTTP {status}, esperado {expected}'
+          print('Webhook adulterado/sem assinatura: BLOQUEADO HTTP',status)
+          PY
+      - name: Consulta autenticada obrigatoria para qualquer venda
+        shell: bash
+        run: |
+          set -euo pipefail
+          code=$(curl -sS --max-time 20 -o /tmp/status.json -w '%{http_code}' "$URL/sales/00000000-0000-4000-8000-000000000000")
+          test "$code" = 401 || { echo "Status sem login retornou HTTP $code"; exit 1; }
+          echo 'Consulta da venda sem login: BLOQUEADA'
