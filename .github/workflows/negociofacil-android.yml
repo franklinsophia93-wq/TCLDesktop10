@@ -1,4 +1,4 @@
-name: NegocioFacil Android 0.4 - AdMob do proprietario (anuncios de teste)
+name: NegocioFacil Android 0.5 - menu de compartilhamento Android
 on:
   push:
     branches: [negociofacil-android]
@@ -6,6 +6,7 @@ on:
       - 'negociofacil/NegocioFacil-src.zip'
       - 'negociofacil/upgrade_v03.py'
       - 'negociofacil/upgrade_v04_admob.py'
+      - 'negociofacil/upgrade_v05_sharing.py'
       - '.github/workflows/negociofacil-android.yml'
   workflow_dispatch:
 
@@ -27,8 +28,11 @@ jobs:
           test -s build-src/android/app/build.gradle
           python3 negociofacil/upgrade_v03.py build-src
           python3 negociofacil/upgrade_v04_admob.py build-src
+          python3 negociofacil/upgrade_v05_sharing.py build-src
+          grep -Fq 'Intent.createChooser(share' build-src/android/app/src/main/java/br/com/negociofacil/app/MainActivity.java
+          grep -Fq "bridge().shareText(x.title,msg)" build-src/web/app.js
           python3 -m py_compile negociofacil/upgrade_v04_admob.py
-          grep -q "versionCode 4" build-src/android/app/build.gradle
+          grep -q "versionCode 5" build-src/android/app/build.gradle
           node --check build-src/web/app.js
       - name: Configurar Java 17
         uses: actions/setup-java@v4
@@ -57,14 +61,14 @@ jobs:
           test -s "$APK"
           unzip -tqq "$APK"
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -Fq "package: name='br.com.negociofacil.app'"
-          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -Fq "versionCode='4'"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -Fq "versionCode='5'"
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$APK"
-          cp "$APK" NegocioFacil-0.4-teste.apk
-          sha256sum NegocioFacil-0.4-teste.apk
-          echo 'ATENCAO: ASSINATURA DE DEBUG TEMPORARIA DO CI. A 0.4 PODE EXIGIR REINSTALACAO. FACA BACKUP.'
+          cp "$APK" NegocioFacil-0.5-teste.apk
+          sha256sum NegocioFacil-0.5-teste.apk
+          echo 'ATENCAO: ASSINATURA DE DEBUG TEMPORARIA DO CI. A 0.5 PODE EXIGIR REINSTALACAO. FACA BACKUP.'
       - name: Enviar APK de teste
         uses: actions/upload-artifact@v4
         with:
-          name: NegocioFacil-0.4-APK
-          path: NegocioFacil-0.4-teste.apk
+          name: NegocioFacil-0.5-APK
+          path: NegocioFacil-0.5-teste.apk
           if-no-files-found: error
