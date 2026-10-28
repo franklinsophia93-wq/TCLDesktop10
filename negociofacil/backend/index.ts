@@ -75,7 +75,7 @@ async function connection(req:Request,remove:boolean){
  const rows=await db('nf_mp_connections','GET',filter);
  return response({connected:rows.length===1,...(rows.length?{account_id:rows[0].mp_user_id,connected_at:rows[0].connected_at,requires_reconnect:!!rows[0].expires_at&&Date.parse(rows[0].expires_at)<Date.now()}: {})});
 }
-Deno.serve(async(req:Request)=>{
+async function handleRequest(req:Request):Promise<Response>{
  try{
   const path=new URL(req.url).pathname;
   if(path.endsWith('/health')&&req.method==='GET')return response({service:'NegocioFacil Mercado Pago OAuth',stage:'homologacao',configured:ready,payments_enabled:false});
@@ -87,4 +87,25 @@ Deno.serve(async(req:Request)=>{
   if(path.endsWith('/oauth/disconnect')&&req.method==='POST')return await connection(req,true);
   return response({error:'Rota não disponível; cobranças reais desativadas'},404);
  }catch(e){console.error('OAuth backend error',String(e));return response({error:'Falha no serviço. Tente novamente.'},500)}
+}
+const APP_WEB_ORIGIN = 'https://appassets.androidplatform.net';
+Deno.serve(async (req:Request)=>{
+ const origin=req.headers.get('origin');
+ const permitted=origin===APP_WEB_ORIGIN;
+ if(req.method==='OPTIONS'){
+   if(!permitted)return response({error:'Origem não autorizada'},403);
+   return new Response(null,{status:204,headers:{
+     'access-control-allow-origin':APP_WEB_ORIGIN,
+     'access-control-allow-methods':'GET,POST,OPTIONS',
+     'access-control-allow-headers':'authorization,apikey,content-type,x-client-info',
+     'access-control-max-age':'3600',
+     'vary':'Origin',
+   }});
+ }
+ const result=await handleRequest(req);
+ if(permitted){
+   result.headers.set('access-control-allow-origin',APP_WEB_ORIGIN);
+   result.headers.set('vary','Origin');
+ }
+ return result;
 });
